@@ -60,9 +60,23 @@ extension JavaScriptVisit: WebViewVisitDelegate {
     
     func webView(_ webView: WebViewBridge, didFailRequestForVisitWithIdentifier identifier: String, statusCode: Int) {
         guard identifier == self.identifier else { return }
-        
+
         log("didFailRequestForVisitWithIdentifier", ["identifier": identifier, "statusCode": statusCode])
-        fail(with: TurboError(statusCode: statusCode))
+
+        // Map status codes to appropriate error types:
+        // - Positive status codes are HTTP errors
+        // - 0 = network failure, -1 = timeout, -2 = content type mismatch
+        let error: HotwireNativeError
+        switch statusCode {
+        case -2:
+            error = .load(.contentTypeMismatch)
+        case ...0:
+            error = .web(WebError.from(turboStatusCode: statusCode))
+        default:
+            error = .http(HttpError.from(statusCode: statusCode))
+        }
+
+        fail(with: error)
     }
     
     func webView(_ webView: WebViewBridge, didFinishRequestForVisitWithIdentifier identifier: String, date: Date) {

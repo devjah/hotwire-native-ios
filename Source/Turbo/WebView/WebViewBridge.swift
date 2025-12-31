@@ -5,7 +5,7 @@ protocol WebViewDelegate: AnyObject {
     func webViewDidInvalidatePage(_ webView: WebViewBridge)
     func webView(_ webView: WebViewBridge, didStartFormSubmissionToLocation location: URL)
     func webView(_ webView: WebViewBridge, didFinishFormSubmissionToLocation location: URL)
-    func webView(_ webView: WebViewBridge, didFailInitialPageLoadWithError: Error)
+    func webView(_ webView: WebViewBridge, didFailInitialPageLoadWithError: HotwireNativeError)
     func webView(_ webView: WebViewBridge, didFailJavaScriptEvaluationWithError error: Error)
     func webView(_ webView: WebViewBridge, didFailRequestWithNonHttpStatusToLocation location: URL, identifier: String, statusCode: Int)
 }
@@ -113,7 +113,7 @@ extension WebViewBridge: ScriptMessageHandlerDelegate {
         case .pageLoaded:
             pageLoadDelegate?.webView(self, didLoadPageWithRestorationIdentifier: message.restorationIdentifier!)
         case .pageLoadFailed:
-            delegate?.webView(self, didFailInitialPageLoadWithError: TurboError.pageLoadFailure)
+            delegate?.webView(self, didFailInitialPageLoadWithError: .load(.notPresent))
         case .formSubmissionStarted:
             delegate?.webView(self, didStartFormSubmissionToLocation: message.location!)
         case .formSubmissionFinished:
