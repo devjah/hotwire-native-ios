@@ -203,7 +203,7 @@ extension Navigator: SessionDelegate {
         }
     }
 
-    public func session(_ session: Session, didFailRequestForVisitable visitable: Visitable, error: Error) {
+    public func session(_ session: Session, didFailRequestForVisitable visitable: Visitable, error: HotwireNativeError) {
         delegate?.visitableDidFailRequest(visitable, error: error) {
             session.reload()
         }

@@ -85,7 +85,7 @@ class SessionTests: XCTestCase {
 
         XCTAssertNotNil(sessionDelegate.failedRequestError)
         let error = try XCTUnwrap(sessionDelegate.failedRequestError)
-        XCTAssertEqual(error as? TurboError, TurboError.http(statusCode: 404))
+        XCTAssertEqual(error, .http(.client(.notFound)))
     }
 
     func test_coldBootVisit_whenVisitFailsFromHTTPError_callsSessionDidFinishRequestDelegateMethod() async {
@@ -103,7 +103,7 @@ class SessionTests: XCTestCase {
 
         XCTAssertNotNil(sessionDelegate.failedRequestError)
         let error = try XCTUnwrap(sessionDelegate.failedRequestError)
-        XCTAssertEqual(error as? TurboError, TurboError.pageLoadFailure)
+        XCTAssertEqual(error, .load(.notPresent))
     }
 
     // MARK: - Server

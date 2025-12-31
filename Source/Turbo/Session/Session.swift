@@ -166,7 +166,7 @@ extension Session: VisitDelegate {
         delegate?.sessionDidFinishRequest(self)
     }
 
-    func visit(_ visit: Visit, requestDidFailWithError error: Error) {
+    func visit(_ visit: Visit, requestDidFailWithError error: HotwireNativeError) {
         delegate?.session(self, didFailRequestForVisitable: visit.visitable, error: error)
     }
 
@@ -349,7 +349,7 @@ extension Session: WebViewDelegate {
     }
 
     /// Initial page load failed, this will happen when we couldn't find Turbo JS on the page
-    func webView(_ webView: WebViewBridge, didFailInitialPageLoadWithError error: Error) {
+    func webView(_ webView: WebViewBridge, didFailInitialPageLoadWithError error: HotwireNativeError) {
         guard let currentVisit = currentVisit, !initialized else { return }
 
         initialized = false
@@ -402,7 +402,7 @@ extension Session: WebViewDelegate {
                      "visitIdentifier": identifier]
                 )
                 await failCurrentVisit(
-                    with: TurboError(statusCode: statusCode),
+                    with: errorFromStatusCode(statusCode),
                     visitIdentifier: identifier
                 )
             case .sameOriginRedirect(let url):
@@ -414,7 +414,7 @@ extension Session: WebViewDelegate {
                      "visitIdentifier": identifier]
                 )
                 await failCurrentVisit(
-                    with: TurboError(statusCode: statusCode),
+                    with: errorFromStatusCode(statusCode),
                     visitIdentifier: identifier
                 )
             case .crossOriginRedirect(let url):
@@ -424,16 +424,43 @@ extension Session: WebViewDelegate {
                     visitIdentifier: identifier
                 )
             }
+        } catch let error as RedirectHandlerError {
+            // Convert redirect-specific errors to appropriate types
+            let visitError: HotwireNativeError
+            switch error {
+            case .responseValidationFailed(reason: .unacceptableStatusCode(let code)):
+                visitError = .http(HttpError.from(statusCode: code))
+            case .responseValidationFailed(reason: .missingURL),
+                 .responseValidationFailed(reason: .invalidResponse):
+                visitError = .load(.invalidResponse)
+            case .requestFailed(let underlyingError):
+                visitError = .web(WebError.from(underlyingError))
+            }
+            await failCurrentVisit(with: visitError, visitIdentifier: identifier)
         } catch {
             await failCurrentVisit(
-                with: error,
+                with: .web(WebError.from(error)),
                 visitIdentifier: identifier
             )
         }
     }
 
+    /// Converts a Turbo.js status code to the appropriate error type.
+    /// - Positive status codes are HTTP errors
+    /// - 0 = network failure, -1 = timeout, -2 = content type mismatch
+    private func errorFromStatusCode(_ statusCode: Int) -> HotwireNativeError {
+        switch statusCode {
+        case -2:
+            return .load(.contentTypeMismatch)
+        case ...0:
+            return .web(WebError.from(turboStatusCode: statusCode))
+        default:
+            return .http(HttpError.from(statusCode: statusCode))
+        }
+    }
+
     @MainActor
-    private func failCurrentVisit(with error: Error, visitIdentifier: String) {
+    private func failCurrentVisit(with error: HotwireNativeError, visitIdentifier: String) {
         // This is only relevant to `JavaScriptVisit`, as `ColdBootVisit` currently
         // doesn't go through the same flow.
         guard let visit = currentVisit as? JavaScriptVisit,
