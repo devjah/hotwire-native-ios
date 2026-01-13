@@ -1,6 +1,14 @@
 import SwiftUI
 import UIKit
 
+/// A protocol for navigator delegates that need access to the tab bar controller.
+///
+/// Implement this protocol in your `NavigatorDelegate` if you need to access
+/// the `HotwireTabBarController` for operations like authentication redirects.
+public protocol HotwireTabBarControllerDelegate: AnyObject {
+    var tabBarController: HotwireTabBarController? { get set }
+}
+
 /// A SwiftUI view that wraps `HotwireTabBarController` for tab-based navigation.
 ///
 /// Use this as your root view in a SwiftUI app to get full Hotwire Native functionality
@@ -36,6 +44,12 @@ public struct HotwireRootView: UIViewControllerRepresentable {
     public func makeUIViewController(context: Context) -> HotwireTabBarController {
         let controller = HotwireTabBarController(navigatorDelegate: context.coordinator)
         context.coordinator.tabBarController = controller
+
+        // Provide tabBarController to delegates that need it
+        if let tabBarDelegate = navigatorDelegate as? HotwireTabBarControllerDelegate {
+            tabBarDelegate.tabBarController = controller
+        }
+
         controller.load(tabs)
         return controller
     }
@@ -44,6 +58,11 @@ public struct HotwireRootView: UIViewControllerRepresentable {
         // Update delegate reference if it changed
         context.coordinator.customDelegate = navigatorDelegate
         context.coordinator.onActiveNavigatorChange = onActiveNavigatorChange
+
+        // Ensure tabBarController reference is up to date
+        if let tabBarDelegate = navigatorDelegate as? HotwireTabBarControllerDelegate {
+            tabBarDelegate.tabBarController = controller
+        }
     }
 
     public func makeCoordinator() -> Coordinator {

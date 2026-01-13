@@ -26,6 +26,11 @@
 		84SWUI0012D5BB00100000004 /* path-configuration.json in Resources */ = {isa = PBXBuildFile; fileRef = 84SWUI0012D5BB00100000008 /* path-configuration.json */; };
 		84SWUI0012D5BB0010000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 844BA7932B9A4844008F48DB /* Assets.xcassets */; };
 		84SWUI0012D5BB0010000000B /* HotwireNative in Frameworks */ = {isa = PBXBuildFile; productRef = 84SWUI0012D5BB0010000000C /* HotwireNative */; };
+		84SWUI0012D5BB0010000000D /* Demo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84SWUI0012D5BB0010000000E /* Demo.swift */; };
+		84SWUI0012D5BB0010000000F /* NumbersViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84SWUI0012D5BB00100000011 /* NumbersViewController.swift */; };
+		84SWUI0012D5BB00100000012 /* FormComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84SWUI0012D5BB00100000013 /* FormComponent.swift */; };
+		84SWUI0012D5BB00100000014 /* MenuComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84SWUI0012D5BB00100000015 /* MenuComponent.swift */; };
+		84SWUI0012D5BB00100000016 /* OverflowMenuComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84SWUI0012D5BB00100000017 /* OverflowMenuComponent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +54,11 @@
 		84SWUI0012D5BB00100000007 /* AppNavigatorDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigatorDelegate.swift; sourceTree = "<group>"; };
 		84SWUI0012D5BB00100000008 /* path-configuration.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "path-configuration.json"; sourceTree = "<group>"; };
 		84SWUI0012D5BB00100000009 /* SwiftUIDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftUIDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		84SWUI0012D5BB0010000000E /* Demo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Demo.swift; sourceTree = "<group>"; };
+		84SWUI0012D5BB00100000011 /* NumbersViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumbersViewController.swift; sourceTree = "<group>"; };
+		84SWUI0012D5BB00100000013 /* FormComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormComponent.swift; sourceTree = "<group>"; };
+		84SWUI0012D5BB00100000015 /* MenuComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuComponent.swift; sourceTree = "<group>"; };
+		84SWUI0012D5BB00100000017 /* OverflowMenuComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverflowMenuComponent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,12 +138,25 @@
 		84SWUI0012D5BB00100000010 /* SwiftUIDemo */ = {
 			isa = PBXGroup;
 			children = (
+				84SWUI0012D5BB00100000018 /* Bridge */,
 				84SWUI0012D5BB00100000005 /* SwiftUIDemoApp.swift */,
+				84SWUI0012D5BB0010000000E /* Demo.swift */,
 				84SWUI0012D5BB00100000006 /* Tabs.swift */,
 				84SWUI0012D5BB00100000007 /* AppNavigatorDelegate.swift */,
+				84SWUI0012D5BB00100000011 /* NumbersViewController.swift */,
 				84SWUI0012D5BB00100000008 /* path-configuration.json */,
 			);
 			path = SwiftUIDemo;
+			sourceTree = "<group>";
+		};
+		84SWUI0012D5BB00100000018 /* Bridge */ = {
+			isa = PBXGroup;
+			children = (
+				84SWUI0012D5BB00100000013 /* FormComponent.swift */,
+				84SWUI0012D5BB00100000015 /* MenuComponent.swift */,
+				84SWUI0012D5BB00100000017 /* OverflowMenuComponent.swift */,
+			);
+			path = Bridge;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -261,8 +284,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				84SWUI0012D5BB00100000001 /* SwiftUIDemoApp.swift in Sources */,
+				84SWUI0012D5BB0010000000D /* Demo.swift in Sources */,
 				84SWUI0012D5BB00100000002 /* Tabs.swift in Sources */,
 				84SWUI0012D5BB00100000003 /* AppNavigatorDelegate.swift in Sources */,
+				84SWUI0012D5BB0010000000F /* NumbersViewController.swift in Sources */,
+				84SWUI0012D5BB00100000012 /* FormComponent.swift in Sources */,
+				84SWUI0012D5BB00100000014 /* MenuComponent.swift in Sources */,
+				84SWUI0012D5BB00100000016 /* OverflowMenuComponent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

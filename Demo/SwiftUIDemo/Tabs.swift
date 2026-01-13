@@ -2,29 +2,53 @@ import HotwireNative
 import UIKit
 
 extension HotwireTab {
-    static let all: [HotwireTab] = [
-        .home,
-        .components,
-        .resources
-    ]
+    static let all: [HotwireTab] = {
+        var tabs: [HotwireTab] = [
+            .navigation,
+            .bridgeComponents,
+            .resources
+        ]
 
-    private static let baseURL = URL(string: "https://hotwire-native-demo.dev")!
+        if Demo.current == Demo.local {
+            tabs.append(.bugsAndFixes)
+        }
 
-    static let home = HotwireTab(
-        title: "Home",
-        image: UIImage(systemName: "house")!,
-        url: baseURL
+        return tabs
+    }()
+
+    static let navigation = HotwireTab(
+        title: "Navigation",
+        image: UIImage(systemName: "arrow.left.arrow.right")!,
+        url: Demo.current
     )
 
-    static let components = HotwireTab(
-        title: "Components",
-        image: UIImage(systemName: "square.grid.2x2")!,
-        url: baseURL.appendingPathComponent("components")
+    static let bridgeComponents = HotwireTab(
+        title: "Bridge Components",
+        image: {
+            if #available(iOS 17.4, *) {
+                return UIImage(systemName: "widget.small")!
+            } else {
+                return UIImage(systemName: "square.grid.2x2")!
+            }
+        }(),
+        url: Demo.current.appendingPathComponent("components")
     )
 
     static let resources = HotwireTab(
         title: "Resources",
-        image: UIImage(systemName: "book.closed")!,
-        url: baseURL.appendingPathComponent("resources")
+        image: {
+            if #available(iOS 17.4, *) {
+                return UIImage(systemName: "questionmark.text.page")!
+            } else {
+                return UIImage(systemName: "book.closed")!
+            }
+        }(),
+        url: Demo.current.appendingPathComponent("resources")
+    )
+
+    static let bugsAndFixes = HotwireTab(
+        title: "Bugs & Fixes",
+        image: UIImage(systemName: "ladybug")!,
+        url: Demo.current.appendingPathComponent("bugs")
     )
 }
