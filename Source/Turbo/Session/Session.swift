@@ -402,7 +402,7 @@ extension Session: WebViewDelegate {
                      "visitIdentifier": identifier]
                 )
                 await failCurrentVisit(
-                    with: errorFromStatusCode(statusCode),
+                    with: HotwireNativeError(turboJSStatusCode: statusCode),
                     visitIdentifier: identifier
                 )
             case .sameOriginRedirect(let url):
@@ -414,7 +414,7 @@ extension Session: WebViewDelegate {
                      "visitIdentifier": identifier]
                 )
                 await failCurrentVisit(
-                    with: errorFromStatusCode(statusCode),
+                    with: HotwireNativeError(turboJSStatusCode: statusCode),
                     visitIdentifier: identifier
                 )
             case .crossOriginRedirect(let url):
@@ -442,20 +442,6 @@ extension Session: WebViewDelegate {
                 with: .web(WebError.from(error)),
                 visitIdentifier: identifier
             )
-        }
-    }
-
-    /// Converts a Turbo.js status code to the appropriate error type.
-    /// - Positive status codes are HTTP errors
-    /// - 0 = network failure, -1 = timeout, -2 = content type mismatch
-    private func errorFromStatusCode(_ statusCode: Int) -> HotwireNativeError {
-        switch statusCode {
-        case -2:
-            return .load(.contentTypeMismatch)
-        case ...0:
-            return .web(WebError.from(turboStatusCode: statusCode))
-        default:
-            return .http(HttpError.from(statusCode: statusCode))
         }
     }
 

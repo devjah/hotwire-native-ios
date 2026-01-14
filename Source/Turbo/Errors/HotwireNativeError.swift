@@ -37,4 +37,18 @@ public enum HotwireNativeError: LocalizedError, Equatable {
         }
         return nil
     }
+
+    /// Creates an error from a Turbo.js status code.
+    /// - Positive status codes are HTTP errors
+    /// - 0 = network failure, -1 = timeout, -2 = content type mismatch
+    init(turboJSStatusCode statusCode: Int) {
+        switch statusCode {
+        case -2:
+            self = .load(.contentTypeMismatch)
+        case ...0:
+            self = .web(WebError.from(turboStatusCode: statusCode))
+        default:
+            self = .http(HttpError.from(statusCode: statusCode))
+        }
+    }
 }
