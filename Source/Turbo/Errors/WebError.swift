@@ -106,7 +106,7 @@ public struct WebError: LocalizedError, Equatable {
     /// These are non-HTTP status codes used by Turbo.js to indicate network-level failures:
     /// - 0 = network failure (fetch failed)
     /// - -1 = timeout
-    public static func from(turboStatusCode: Int) -> WebError {
+    static func from(turboStatusCode: Int) -> WebError {
         let description: String
         switch turboStatusCode {
         case 0:
