@@ -34,7 +34,7 @@ public struct WebError: LocalizedError, Equatable {
     }
 
     /// Whether this is an SSL/TLS error.
-    public var isSslError: Bool {
+    public var isSSLError: Bool {
         guard let code = urlError?.code else { return false }
         return [
             .secureConnectionFailed,
@@ -54,7 +54,7 @@ public struct WebError: LocalizedError, Equatable {
             return "Could not connect to the server."
         } else if isTimeout {
             return "The request timed out."
-        } else if isSslError {
+        } else if isSSLError {
             return "A secure connection could not be established."
         } else if urlError?.code == .httpTooManyRedirects {
             return "Too many redirects occurred."
