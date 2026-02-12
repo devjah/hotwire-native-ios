@@ -1,17 +1,17 @@
 import Foundation
 
-public enum RedirectHandlerError: LocalizedError {
+enum RedirectHandlerError: LocalizedError {
     case requestFailed(Error)
     case responseValidationFailed(reason: ResponseValidationFailureReason)
 
     /// The underlying reason the `.responseValidationFailed` error occurred.
-    public enum ResponseValidationFailureReason: Sendable {
+    enum ResponseValidationFailureReason: Sendable {
         case missingURL
         case invalidResponse
         case unacceptableStatusCode(code: Int)
     }
     
-    public var errorDescription: String? {
+    var errorDescription: String? {
         switch self {
         case .requestFailed(let error):
             return "Redirect resolution failed: \(error.localizedDescription)"
