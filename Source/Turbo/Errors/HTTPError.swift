@@ -1,7 +1,7 @@
 import Foundation
 
 /// Errors representing HTTP status codes received from the server.
-public enum HttpError: LocalizedError, Equatable {
+public enum HTTPError: LocalizedError, Equatable {
     case client(ClientError)
     case server(ServerError)
     case unknownError(statusCode: Int)
@@ -30,7 +30,7 @@ public enum HttpError: LocalizedError, Equatable {
     }
 
     /// Creates an HttpError from an HTTP status code.
-    public static func from(statusCode: Int) -> HttpError {
+    public static func from(statusCode: Int) -> HTTPError {
         if (400...499).contains(statusCode) {
             return .client(ClientError.from(statusCode: statusCode))
         }
@@ -45,7 +45,7 @@ public enum HttpError: LocalizedError, Equatable {
 
 // MARK: - Client Errors (4xx)
 
-extension HttpError {
+extension HTTPError {
     /// Errors representing HTTP client errors in the 400-499 range.
     public enum ClientError: LocalizedError, Equatable {
         case badRequest
@@ -128,7 +128,7 @@ extension HttpError {
 
 // MARK: - Server Errors (5xx)
 
-extension HttpError {
+extension HTTPError {
     /// Errors representing HTTP server errors in the 500-599 range.
     public enum ServerError: LocalizedError, Equatable {
         case internalServerError

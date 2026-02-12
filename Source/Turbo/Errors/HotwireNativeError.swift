@@ -3,7 +3,7 @@ import Foundation
 /// A unified error type for all Hotwire Native errors.
 public enum HotwireNativeError: LocalizedError, Equatable {
     /// HTTP status code errors (4xx, 5xx)
-    case http(HttpError)
+    case http(HTTPError)
 
     /// Network/connection errors
     case web(WebError)
@@ -48,7 +48,7 @@ public enum HotwireNativeError: LocalizedError, Equatable {
         case ...0:
             self = .web(WebError.from(turboStatusCode: statusCode))
         default:
-            self = .http(HttpError.from(statusCode: statusCode))
+            self = .http(HTTPError.from(statusCode: statusCode))
         }
     }
 }
