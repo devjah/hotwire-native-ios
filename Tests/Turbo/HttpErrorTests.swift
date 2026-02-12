@@ -1,123 +1,213 @@
 import XCTest
 @testable import HotwireNative
 
-class HttpErrorTests: XCTestCase {
+final class HttpErrorTests: XCTestCase {
 
-    // MARK: - Status Code Range Boundaries
+    // MARK: - from(statusCode:) Range Boundaries
 
-    func test_from_statusCode_routesToCorrectCategory() {
-        let cases: [(Int, String)] = [
-            (399, "unknownError"),   // below client range
-            (400, "client"),         // start of client range
-            (499, "client"),         // end of client range
-            (500, "server"),         // start of server range
-            (599, "server"),         // end of server range
-            (600, "unknownError"),   // above server range
-        ]
-
-        for (statusCode, expectedCategory) in cases {
-            let error = HttpError.from(statusCode: statusCode)
-            switch (error, expectedCategory) {
-            case (.client, "client"),
-                 (.server, "server"),
-                 (.unknownError, "unknownError"):
-                break // correct
-            default:
-                XCTFail("Status code \(statusCode) should be \(expectedCategory), got \(error)")
-            }
-        }
+    func test_from_statusCode1_isUnknownError() {
+        XCTAssertEqual(HttpError.from(statusCode: 1), .unknownError(statusCode: 1))
     }
 
-    // MARK: - ClientError Status Code Round-Trip
-
-    func test_clientError_statusCode_roundTrips() {
-        let cases: [(HttpError.ClientError, Int)] = [
-            (.badRequest, 400),
-            (.unauthorized, 401),
-            (.paymentRequired, 402),
-            (.forbidden, 403),
-            (.notFound, 404),
-            (.methodNotAllowed, 405),
-            (.notAcceptable, 406),
-            (.proxyAuthenticationRequired, 407),
-            (.requestTimeout, 408),
-            (.conflict, 409),
-            (.misdirectedRequest, 421),
-            (.unprocessableEntity, 422),
-            (.preconditionRequired, 428),
-            (.tooManyRequests, 429),
-        ]
-
-        for (expectedCase, statusCode) in cases {
-            let created = HttpError.ClientError.from(statusCode: statusCode)
-            XCTAssertEqual(created, expectedCase, "Status code \(statusCode) should map to \(expectedCase)")
-            XCTAssertEqual(created.statusCode, statusCode, "Round-trip failed for \(expectedCase)")
-        }
+    func test_from_statusCode399_isUnknownError() {
+        XCTAssertEqual(HttpError.from(statusCode: 399), .unknownError(statusCode: 399))
     }
 
-    // MARK: - ServerError Status Code Round-Trip
-
-    func test_serverError_statusCode_roundTrips() {
-        let cases: [(HttpError.ServerError, Int)] = [
-            (.internalServerError, 500),
-            (.notImplemented, 501),
-            (.badGateway, 502),
-            (.serviceUnavailable, 503),
-            (.gatewayTimeout, 504),
-            (.httpVersionNotSupported, 505),
-        ]
-
-        for (expectedCase, statusCode) in cases {
-            let created = HttpError.ServerError.from(statusCode: statusCode)
-            XCTAssertEqual(created, expectedCase, "Status code \(statusCode) should map to \(expectedCase)")
-            XCTAssertEqual(created.statusCode, statusCode, "Round-trip failed for \(expectedCase)")
-        }
+    func test_from_statusCode400_isClientError() {
+        XCTAssertEqual(HttpError.from(statusCode: 400), .client(.badRequest))
     }
 
-    // MARK: - Unmapped Status Codes
-
-    func test_unmappedStatusCodes_fallToOther() {
-        let cases: [(Int, HttpError)] = [
-            (418, .client(.other(statusCode: 418))),   // I'm a Teapot
-            (451, .client(.other(statusCode: 451))),   // Unavailable For Legal Reasons
-            (599, .server(.other(statusCode: 599))),
-        ]
-
-        for (statusCode, expected) in cases {
-            let error = HttpError.from(statusCode: statusCode)
-            XCTAssertEqual(error, expected, "Unmapped code \(statusCode) should fall to .other")
-            XCTAssertEqual(error.statusCode, statusCode, "Status code should round-trip for .other")
-        }
+    func test_from_statusCode499_isClientError() {
+        XCTAssertEqual(HttpError.from(statusCode: 499), .client(.other(statusCode: 499)))
     }
 
-    // MARK: - Error Descriptions
-
-    func test_clientError_descriptions() {
-        let cases: [(HttpError.ClientError, String)] = [
-            (.unauthorized, "Unauthorized"),
-            (.notFound, "Not Found"),
-            (.tooManyRequests, "Too Many Requests"),
-            (.other(statusCode: 418), "Client Error (418)"),
-        ]
-
-        for (error, expected) in cases {
-            XCTAssertEqual(error.errorDescription, expected)
-        }
+    func test_from_statusCode500_isServerError() {
+        XCTAssertEqual(HttpError.from(statusCode: 500), .server(.internalServerError))
     }
 
-    func test_serverError_descriptions() {
-        let cases: [(HttpError.ServerError, String)] = [
-            (.internalServerError, "Internal Server Error"),
-            (.serviceUnavailable, "Service Unavailable"),
-            (.other(statusCode: 599), "Server Error (599)"),
-        ]
-
-        for (error, expected) in cases {
-            XCTAssertEqual(error.errorDescription, expected)
-        }
+    func test_from_statusCode599_isServerError() {
+        XCTAssertEqual(HttpError.from(statusCode: 599), .server(.other(statusCode: 599)))
     }
+
+    func test_from_statusCode600_isUnknownError() {
+        XCTAssertEqual(HttpError.from(statusCode: 600), .unknownError(statusCode: 600))
+    }
+
+    // MARK: - ClientError Round-Trips
+
+    func test_clientError_badRequest_roundTrips() {
+        assertClientErrorRoundTrip(.badRequest, statusCode: 400)
+    }
+
+    func test_clientError_unauthorized_roundTrips() {
+        assertClientErrorRoundTrip(.unauthorized, statusCode: 401)
+    }
+
+    func test_clientError_paymentRequired_roundTrips() {
+        assertClientErrorRoundTrip(.paymentRequired, statusCode: 402)
+    }
+
+    func test_clientError_forbidden_roundTrips() {
+        assertClientErrorRoundTrip(.forbidden, statusCode: 403)
+    }
+
+    func test_clientError_notFound_roundTrips() {
+        assertClientErrorRoundTrip(.notFound, statusCode: 404)
+    }
+
+    func test_clientError_methodNotAllowed_roundTrips() {
+        assertClientErrorRoundTrip(.methodNotAllowed, statusCode: 405)
+    }
+
+    func test_clientError_notAcceptable_roundTrips() {
+        assertClientErrorRoundTrip(.notAcceptable, statusCode: 406)
+    }
+
+    func test_clientError_proxyAuthenticationRequired_roundTrips() {
+        assertClientErrorRoundTrip(.proxyAuthenticationRequired, statusCode: 407)
+    }
+
+    func test_clientError_requestTimeout_roundTrips() {
+        assertClientErrorRoundTrip(.requestTimeout, statusCode: 408)
+    }
+
+    func test_clientError_conflict_roundTrips() {
+        assertClientErrorRoundTrip(.conflict, statusCode: 409)
+    }
+
+    func test_clientError_misdirectedRequest_roundTrips() {
+        assertClientErrorRoundTrip(.misdirectedRequest, statusCode: 421)
+    }
+
+    func test_clientError_unprocessableEntity_roundTrips() {
+        assertClientErrorRoundTrip(.unprocessableEntity, statusCode: 422)
+    }
+
+    func test_clientError_preconditionRequired_roundTrips() {
+        assertClientErrorRoundTrip(.preconditionRequired, statusCode: 428)
+    }
+
+    func test_clientError_tooManyRequests_roundTrips() {
+        assertClientErrorRoundTrip(.tooManyRequests, statusCode: 429)
+    }
+
+    func test_clientError_unmapped418_fallsToOther() {
+        assertClientErrorRoundTrip(.other(statusCode: 418), statusCode: 418)
+    }
+
+    func test_clientError_unmapped451_fallsToOther() {
+        assertClientErrorRoundTrip(.other(statusCode: 451), statusCode: 451)
+    }
+
+    // MARK: - ServerError Round-Trips
+
+    func test_serverError_internalServerError_roundTrips() {
+        assertServerErrorRoundTrip(.internalServerError, statusCode: 500)
+    }
+
+    func test_serverError_notImplemented_roundTrips() {
+        assertServerErrorRoundTrip(.notImplemented, statusCode: 501)
+    }
+
+    func test_serverError_badGateway_roundTrips() {
+        assertServerErrorRoundTrip(.badGateway, statusCode: 502)
+    }
+
+    func test_serverError_serviceUnavailable_roundTrips() {
+        assertServerErrorRoundTrip(.serviceUnavailable, statusCode: 503)
+    }
+
+    func test_serverError_gatewayTimeout_roundTrips() {
+        assertServerErrorRoundTrip(.gatewayTimeout, statusCode: 504)
+    }
+
+    func test_serverError_httpVersionNotSupported_roundTrips() {
+        assertServerErrorRoundTrip(.httpVersionNotSupported, statusCode: 505)
+    }
+
+    func test_serverError_unmapped599_fallsToOther() {
+        assertServerErrorRoundTrip(.other(statusCode: 599), statusCode: 599)
+    }
+
+    // MARK: - unknownError statusCode
+
+    func test_unknownError_statusCode_roundTrips() {
+        XCTAssertEqual(HttpError.unknownError(statusCode: 600).statusCode, 600)
+    }
+
+    func test_unknownError_statusCode_roundTrips_forLowCode() {
+        XCTAssertEqual(HttpError.unknownError(statusCode: 1).statusCode, 1)
+    }
+
+    // MARK: - HttpError statusCode Delegation
+
+    func test_statusCode_delegatesToClientError() {
+        XCTAssertEqual(HttpError.client(.notFound).statusCode, 404)
+    }
+
+    func test_statusCode_delegatesToServerError() {
+        XCTAssertEqual(HttpError.server(.badGateway).statusCode, 502)
+    }
+
+    // MARK: - ClientError Descriptions
+
+    func test_clientError_unauthorized_description() {
+        XCTAssertEqual(HttpError.ClientError.unauthorized.errorDescription, "Unauthorized")
+    }
+
+    func test_clientError_notFound_description() {
+        XCTAssertEqual(HttpError.ClientError.notFound.errorDescription, "Not Found")
+    }
+
+    func test_clientError_tooManyRequests_description() {
+        XCTAssertEqual(HttpError.ClientError.tooManyRequests.errorDescription, "Too Many Requests")
+    }
+
+    func test_clientError_other_description_includesStatusCode() {
+        XCTAssertEqual(HttpError.ClientError.other(statusCode: 418).errorDescription, "Client Error (418)")
+    }
+
+    // MARK: - ServerError Descriptions
+
+    func test_serverError_internalServerError_description() {
+        XCTAssertEqual(HttpError.ServerError.internalServerError.errorDescription, "Internal Server Error")
+    }
+
+    func test_serverError_serviceUnavailable_description() {
+        XCTAssertEqual(HttpError.ServerError.serviceUnavailable.errorDescription, "Service Unavailable")
+    }
+
+    func test_serverError_other_description_includesStatusCode() {
+        XCTAssertEqual(HttpError.ServerError.other(statusCode: 599).errorDescription, "Server Error (599)")
+    }
+
+    // MARK: - unknownError Description
 
     func test_unknownError_description_includesStatusCode() {
         XCTAssertEqual(HttpError.unknownError(statusCode: 600).errorDescription, "HTTP Error (600)")
+    }
+
+    // MARK: - Helpers
+
+    private func assertClientErrorRoundTrip(
+        _ expected: HttpError.ClientError,
+        statusCode: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let created = HttpError.ClientError.from(statusCode: statusCode)
+        XCTAssertEqual(created, expected, file: file, line: line)
+        XCTAssertEqual(created.statusCode, statusCode, "statusCode round-trip failed", file: file, line: line)
+    }
+
+    private func assertServerErrorRoundTrip(
+        _ expected: HttpError.ServerError,
+        statusCode: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let created = HttpError.ServerError.from(statusCode: statusCode)
+        XCTAssertEqual(created, expected, file: file, line: line)
+        XCTAssertEqual(created.statusCode, statusCode, "statusCode round-trip failed", file: file, line: line)
     }
 }
