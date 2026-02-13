@@ -389,8 +389,8 @@ extension Session: WebViewDelegate {
             ]
         )
 
-        Task {
-            await resolveRedirect(to: location, identifier: identifier, statusCode: statusCode)
+        Task { [weak self] in
+            await self?.resolveRedirect(to: location, identifier: identifier, statusCode: statusCode)
         }
     }
 
