@@ -45,6 +45,12 @@ final class WebErrorTests: XCTestCase {
         XCTAssertFalse(WebError(errorCode: 0, message: nil).isTimeout)
     }
 
+    func test_isTimeout_false_forURLErrorUnknown() {
+        // URLError.Code.unknown.rawValue is -1, same as Turbo.js timeout code.
+        // When a URLError is present, isTimeout should check the typed code, not the raw value.
+        XCTAssertFalse(WebError(urlError: URLError(.unknown)).isTimeout)
+    }
+
     // MARK: - isConnectionError
 
     func test_isConnectionError_true_forCannotFindHost() {

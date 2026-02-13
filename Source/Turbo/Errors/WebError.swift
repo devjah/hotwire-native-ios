@@ -23,8 +23,11 @@ public struct WebError: LocalizedError, Equatable, Sendable {
 
     /// Whether the request timed out.
     public var isTimeout: Bool {
+        if let urlError {
+            return urlError.code == .timedOut
+        }
         // Turbo.js status code -1 = timeout
-        return errorCode == URLError.Code.timedOut.rawValue || errorCode == -1
+        return errorCode == -1
     }
 
     /// Whether the server could not be reached.
