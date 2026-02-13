@@ -436,12 +436,12 @@ extension Session: WebViewDelegate {
                  .responseValidationFailed(reason: .invalidResponse):
                 visitError = .load(.invalidResponse)
             case .requestFailed(let underlyingError):
-                visitError = .web(WebError.from(underlyingError))
+                visitError = .web(WebError(underlyingError))
             }
             await retryOrFailCurrentVisit(with: visitError, visitIdentifier: identifier)
         } catch {
             await retryOrFailCurrentVisit(
-                with: .web(WebError.from(error)),
+                with: .web(WebError(error)),
                 visitIdentifier: identifier
             )
         }

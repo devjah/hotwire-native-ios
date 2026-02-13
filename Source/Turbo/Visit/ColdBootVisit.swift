@@ -105,7 +105,7 @@ extension ColdBootVisit: WKNavigationDelegate {
                 decisionHandler(.allow)
             } else {
                 decisionHandler(.cancel)
-                if let httpError = HTTPError.from(statusCode: httpResponse.statusCode) {
+                if let httpError = HTTPError(statusCode: httpResponse.statusCode) {
                     fail(with: .http(httpError))
                 } else {
                     fail(with: .load(.invalidResponse))
@@ -124,12 +124,12 @@ extension ColdBootVisit: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         guard navigation == self.navigation else { return }
-        fail(with: .web(WebError.from(error)))
+        fail(with: .web(WebError(error)))
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         guard navigation == self.navigation else { return }
-        fail(with: .web(WebError.from(error)))
+        fail(with: .web(WebError(error)))
     }
 
     func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {

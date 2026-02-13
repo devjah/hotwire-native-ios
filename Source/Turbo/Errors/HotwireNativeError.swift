@@ -60,9 +60,9 @@ public enum HotwireNativeError: LocalizedError, Equatable, Sendable {
         case -2:
             self = .load(.contentTypeMismatch)
         case ...0:
-            self = .web(WebError.from(turboStatusCode: statusCode))
+            self = .web(WebError(turboStatusCode: statusCode))
         default:
-            if let httpError = HTTPError.from(statusCode: statusCode) {
+            if let httpError = HTTPError(statusCode: statusCode) {
                 self = .http(httpError)
             } else {
                 self = .web(WebError(errorCode: statusCode, message: "Unexpected status code"))

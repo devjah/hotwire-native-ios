@@ -89,11 +89,12 @@ public struct WebError: LocalizedError, Equatable, Sendable {
     // MARK: - Factory Methods
 
     /// Creates a WebError from any Error (attempts to extract URLError if possible).
-    public static func from(_ error: Error) -> WebError {
+    public init(_ error: Error) {
         if let urlError = error as? URLError {
-            return WebError(urlError: urlError)
+            self.init(urlError: urlError)
+        } else {
+            self.init(errorCode: (error as NSError).code, message: error.localizedDescription)
         }
-        return WebError(errorCode: (error as NSError).code, message: error.localizedDescription)
     }
 
     /// Internal-only: creates a WebError from a Turbo.js status code.
@@ -102,7 +103,7 @@ public struct WebError: LocalizedError, Equatable, Sendable {
     /// These are non-HTTP status codes used by Turbo.js to indicate network-level failures:
     /// - 0 = network failure (fetch failed)
     /// - -1 = timeout
-    static func from(turboStatusCode: Int) -> WebError {
+    init(turboStatusCode: Int) {
         let message: String
         switch turboStatusCode {
         case 0:
@@ -112,6 +113,6 @@ public struct WebError: LocalizedError, Equatable, Sendable {
         default:
             message = "Network error"
         }
-        return WebError(errorCode: turboStatusCode, message: message)
+        self.init(errorCode: turboStatusCode, message: message)
     }
 }

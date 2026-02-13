@@ -196,27 +196,18 @@ final class WebErrorTests: XCTestCase {
         XCTAssertEqual(error.errorDescription, "Network Error")
     }
 
-    // MARK: - from(URLError)
+    // MARK: - init(Error)
 
-    func test_from_urlError_preservesURLErrorAndCode() {
-        let urlError = URLError(.notConnectedToInternet)
-        let webError = WebError.from(urlError)
-        XCTAssertEqual(webError.urlError, urlError)
-        XCTAssertEqual(webError.errorCode, URLError.Code.notConnectedToInternet.rawValue)
-    }
-
-    // MARK: - from(Error)
-
-    func test_from_genericError_extractsURLError() {
+    func test_init_error_extractsURLError() {
         let urlError = URLError(.timedOut)
-        let webError = WebError.from(urlError as Error)
+        let webError = WebError(urlError as Error)
         XCTAssertEqual(webError.urlError, urlError)
         XCTAssertEqual(webError.errorCode, URLError.Code.timedOut.rawValue)
     }
 
-    func test_from_genericError_wrapsNonURLError() {
+    func test_init_error_wrapsNonURLError() {
         let nsError = NSError(domain: "test", code: 42)
-        let webError = WebError.from(nsError as Error)
+        let webError = WebError(nsError as Error)
         XCTAssertNil(webError.urlError)
         XCTAssertEqual(webError.errorCode, 42)
     }

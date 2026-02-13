@@ -6,31 +6,31 @@ final class HTTPErrorTests: XCTestCase {
     // MARK: - from(statusCode:) Range Boundaries
 
     func test_from_statusCode1_returnsNil() {
-        XCTAssertNil(HTTPError.from(statusCode: 1))
+        XCTAssertNil(HTTPError(statusCode: 1))
     }
 
     func test_from_statusCode399_returnsNil() {
-        XCTAssertNil(HTTPError.from(statusCode: 399))
+        XCTAssertNil(HTTPError(statusCode: 399))
     }
 
     func test_from_statusCode400_isClientError() {
-        XCTAssertEqual(HTTPError.from(statusCode: 400), .client(.badRequest))
+        XCTAssertEqual(HTTPError(statusCode: 400), .client(.badRequest))
     }
 
     func test_from_statusCode499_isClientError() {
-        XCTAssertEqual(HTTPError.from(statusCode: 499), .client(.other(statusCode: 499)))
+        XCTAssertEqual(HTTPError(statusCode: 499), .client(.other(statusCode: 499)))
     }
 
     func test_from_statusCode500_isServerError() {
-        XCTAssertEqual(HTTPError.from(statusCode: 500), .server(.internalServerError))
+        XCTAssertEqual(HTTPError(statusCode: 500), .server(.internalServerError))
     }
 
     func test_from_statusCode599_isServerError() {
-        XCTAssertEqual(HTTPError.from(statusCode: 599), .server(.other(statusCode: 599)))
+        XCTAssertEqual(HTTPError(statusCode: 599), .server(.other(statusCode: 599)))
     }
 
     func test_from_statusCode600_returnsNil() {
-        XCTAssertNil(HTTPError.from(statusCode: 600))
+        XCTAssertNil(HTTPError(statusCode: 600))
     }
 
     // MARK: - ClientError Round-Trips
@@ -253,7 +253,7 @@ final class HTTPErrorTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        let created = HTTPError.ClientError.from(statusCode: statusCode)
+        let created = HTTPError.ClientError(statusCode: statusCode)
         XCTAssertEqual(created, expected, file: file, line: line)
         XCTAssertEqual(created.statusCode, statusCode, "statusCode round-trip failed", file: file, line: line)
     }
@@ -264,7 +264,7 @@ final class HTTPErrorTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        let created = HTTPError.ServerError.from(statusCode: statusCode)
+        let created = HTTPError.ServerError(statusCode: statusCode)
         XCTAssertEqual(created, expected, file: file, line: line)
         XCTAssertEqual(created.statusCode, statusCode, "statusCode round-trip failed", file: file, line: line)
     }

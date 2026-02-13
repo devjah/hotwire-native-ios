@@ -34,16 +34,14 @@ public enum HTTPError: LocalizedError, Equatable, Sendable {
 
     /// Creates an HTTPError from an HTTP status code.
     /// Returns `nil` for status codes outside the 400-599 error range.
-    public static func from(statusCode: Int) -> HTTPError? {
+    public init?(statusCode: Int) {
         if (400...499).contains(statusCode) {
-            return .client(ClientError.from(statusCode: statusCode))
+            self = .client(ClientError(statusCode: statusCode))
+        } else if (500...599).contains(statusCode) {
+            self = .server(ServerError(statusCode: statusCode))
+        } else {
+            return nil
         }
-
-        if (500...599).contains(statusCode) {
-            return .server(ServerError.from(statusCode: statusCode))
-        }
-
-        return nil
     }
 }
 
@@ -115,23 +113,23 @@ extension HTTPError {
             }
         }
 
-        public static func from(statusCode: Int) -> ClientError {
+        public init(statusCode: Int) {
             switch statusCode {
-            case 400: return .badRequest
-            case 401: return .unauthorized
-            case 402: return .paymentRequired
-            case 403: return .forbidden
-            case 404: return .notFound
-            case 405: return .methodNotAllowed
-            case 406: return .notAcceptable
-            case 407: return .proxyAuthenticationRequired
-            case 408: return .requestTimeout
-            case 409: return .conflict
-            case 421: return .misdirectedRequest
-            case 422: return .unprocessableEntity
-            case 428: return .preconditionRequired
-            case 429: return .tooManyRequests
-            default: return .other(statusCode: statusCode)
+            case 400: self = .badRequest
+            case 401: self = .unauthorized
+            case 402: self = .paymentRequired
+            case 403: self = .forbidden
+            case 404: self = .notFound
+            case 405: self = .methodNotAllowed
+            case 406: self = .notAcceptable
+            case 407: self = .proxyAuthenticationRequired
+            case 408: self = .requestTimeout
+            case 409: self = .conflict
+            case 421: self = .misdirectedRequest
+            case 422: self = .unprocessableEntity
+            case 428: self = .preconditionRequired
+            case 429: self = .tooManyRequests
+            default: self = .other(statusCode: statusCode)
             }
         }
     }
@@ -181,15 +179,15 @@ extension HTTPError {
             }
         }
 
-        public static func from(statusCode: Int) -> ServerError {
+        public init(statusCode: Int) {
             switch statusCode {
-            case 500: return .internalServerError
-            case 501: return .notImplemented
-            case 502: return .badGateway
-            case 503: return .serviceUnavailable
-            case 504: return .gatewayTimeout
-            case 505: return .httpVersionNotSupported
-            default: return .other(statusCode: statusCode)
+            case 500: self = .internalServerError
+            case 501: self = .notImplemented
+            case 502: self = .badGateway
+            case 503: self = .serviceUnavailable
+            case 504: self = .gatewayTimeout
+            case 505: self = .httpVersionNotSupported
+            default: self = .other(statusCode: statusCode)
             }
         }
     }
