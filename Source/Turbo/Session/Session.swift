@@ -17,6 +17,7 @@ public class Session: NSObject {
 
     private var isShowingStaleContent = false
     private var isSnapshotCacheStale = false
+    private var retriedVisitIdentifiers: Set<String> = []
 
     /// Automatically creates a web view with the passed-in configuration
     public convenience init(webViewConfiguration: WKWebViewConfiguration? = nil) {
@@ -201,6 +202,7 @@ extension Session: VisitDelegate {
     }
 
     func visitDidComplete(_ visit: Visit) {
+        retriedVisitIdentifiers.removeAll()
         guard let restorationIdentifier = visit.restorationIdentifier else { return }
         storeRestorationIdentifier(restorationIdentifier, forVisitable: visit.visitable)
     }
@@ -397,11 +399,14 @@ extension Session: WebViewDelegate {
             let result = try await RedirectHandler().resolve(location: location)
             switch result {
             case .noRedirect:
-                log("resolveRedirect: no redirect",
+                // The server is reachable (RedirectHandler confirmed a 2xx response
+                // with no redirect). The Turbo.js fetch failure was transient —
+                // retry with a cold boot visit before showing an error.
+                log("resolveRedirect: no redirect, retrying",
                     ["location": location,
                      "visitIdentifier": identifier]
                 )
-                await failCurrentVisit(
+                await retryOrFailCurrentVisit(
                     with: HotwireNativeError(turboJSStatusCode: statusCode),
                     visitIdentifier: identifier
                 )
@@ -453,6 +458,21 @@ extension Session: WebViewDelegate {
               visit.identifier == visitIdentifier else { return }
 
         visit.fail(with: error)
+    }
+
+    @MainActor
+    private func retryOrFailCurrentVisit(with error: HotwireNativeError, visitIdentifier: String) {
+        guard let visit = currentVisit as? JavaScriptVisit,
+              visit.identifier == visitIdentifier else { return }
+
+        // Only retry once per visit to prevent infinite loops.
+        guard !retriedVisitIdentifiers.contains(visitIdentifier) else {
+            visit.fail(with: error)
+            return
+        }
+
+        retriedVisitIdentifiers.insert(visitIdentifier)
+        reload()
     }
 
     @MainActor
