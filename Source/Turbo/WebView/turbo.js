@@ -11,8 +11,10 @@
     registerAdapter() {
       if (window.Turbo) {
         Turbo.registerAdapter(this)
+        this.turboIsReady(true)
       } else if (window.Turbolinks) {
         Turbolinks.controller.adapter = this
+        this.turboIsReady(true)
       } else {
         throw new Error("Failed to register the TurboNative adapter")
       }
@@ -28,6 +30,10 @@
       }
 
        this.postMessageAfterNextRepaint("pageLoaded", { restorationIdentifier })
+    }
+
+    turboIsReady(isReady) {
+      this.postMessage("turboIsReady", { isReady: isReady })
     }
 
     pageLoadFailed() {
@@ -231,6 +237,7 @@
 
     setTimeout(() => {
       if (!window.Turbo && !window.Turbolinks) {
+        window.turboNative.turboIsReady(false)
         window.turboNative.pageLoadFailed()
       }
     }, TURBO_LOAD_TIMEOUT)

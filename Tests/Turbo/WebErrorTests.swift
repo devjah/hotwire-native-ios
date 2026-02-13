@@ -18,7 +18,7 @@ final class WebErrorTests: XCTestCase {
     }
 
     func test_isOffline_false_whenNoURLError() {
-        XCTAssertFalse(WebError(errorCode: 0, description: nil).isOffline)
+        XCTAssertFalse(WebError(errorCode: 0, message: nil).isOffline)
     }
 
     // MARK: - isTimeout
@@ -28,13 +28,13 @@ final class WebErrorTests: XCTestCase {
     }
 
     func test_isTimeout_true_forTurboJSTimeoutCode() {
-        XCTAssertTrue(WebError(errorCode: -1, description: "Timeout").isTimeout)
+        XCTAssertTrue(WebError(errorCode: -1, message: "Timeout").isTimeout)
     }
 
     func test_isTimeout_true_forRawTimedOutErrorCode() {
         // URLError.Code.timedOut.rawValue is -1001. The isTimeout check uses errorCode directly,
         // so a WebError constructed without a URLError but with -1001 should still be a timeout.
-        XCTAssertTrue(WebError(errorCode: -1001, description: nil).isTimeout)
+        XCTAssertTrue(WebError(errorCode: -1001, message: nil).isTimeout)
     }
 
     func test_isTimeout_false_forNotConnectedToInternet() {
@@ -42,7 +42,7 @@ final class WebErrorTests: XCTestCase {
     }
 
     func test_isTimeout_false_forArbitraryErrorCode() {
-        XCTAssertFalse(WebError(errorCode: 0, description: nil).isTimeout)
+        XCTAssertFalse(WebError(errorCode: 0, message: nil).isTimeout)
     }
 
     // MARK: - isConnectionError
@@ -60,7 +60,7 @@ final class WebErrorTests: XCTestCase {
     }
 
     func test_isConnectionError_false_whenNoURLError() {
-        XCTAssertFalse(WebError(errorCode: 0, description: nil).isConnectionError)
+        XCTAssertFalse(WebError(errorCode: 0, message: nil).isConnectionError)
     }
 
     func test_isConnectionError_false_forTimedOut() {
@@ -102,7 +102,7 @@ final class WebErrorTests: XCTestCase {
     }
 
     func test_isSSLError_false_whenNoURLError() {
-        XCTAssertFalse(WebError(errorCode: 0, description: nil).isSSLError)
+        XCTAssertFalse(WebError(errorCode: 0, message: nil).isSSLError)
     }
 
     // MARK: - Cross-Classification
@@ -181,12 +181,12 @@ final class WebErrorTests: XCTestCase {
     }
 
     func test_errorDescription_usesStoredDescription_whenNoURLError() {
-        let error = WebError(errorCode: 0, description: "Network failure")
+        let error = WebError(errorCode: 0, message: "Network failure")
         XCTAssertEqual(error.errorDescription, "Network failure")
     }
 
     func test_errorDescription_defaultsToNetworkError_whenDescriptionIsNil() {
-        let error = WebError(errorCode: 0, description: nil)
+        let error = WebError(errorCode: 0, message: nil)
         XCTAssertEqual(error.errorDescription, "Network Error")
     }
 
@@ -222,18 +222,18 @@ final class WebErrorTests: XCTestCase {
         let webError = WebError(urlError: urlError)
         XCTAssertEqual(webError.urlError, urlError)
         XCTAssertEqual(webError.errorCode, urlError.code.rawValue)
-        XCTAssertEqual(webError.description, urlError.localizedDescription)
+        XCTAssertEqual(webError.message, urlError.localizedDescription)
     }
 
     func test_init_errorCode_setsAllProperties() {
-        let webError = WebError(errorCode: 42, description: "Custom")
+        let webError = WebError(errorCode: 42, message: "Custom")
         XCTAssertNil(webError.urlError)
         XCTAssertEqual(webError.errorCode, 42)
-        XCTAssertEqual(webError.description, "Custom")
+        XCTAssertEqual(webError.message, "Custom")
     }
 
     func test_init_errorCode_nilDescription_defaultsToNetworkError() {
-        let webError = WebError(errorCode: 0, description: nil)
-        XCTAssertEqual(webError.description, "Network Error")
+        let webError = WebError(errorCode: 0, message: nil)
+        XCTAssertEqual(webError.message, "Network Error")
     }
 }

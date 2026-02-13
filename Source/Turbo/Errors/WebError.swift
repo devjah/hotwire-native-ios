@@ -2,7 +2,7 @@ import Foundation
 
 /// Errors representing network/connection errors received when attempting to load a page.
 /// Wraps URLError to provide full access to iOS error
-public struct WebError: LocalizedError, Equatable {
+public struct WebError: LocalizedError, Equatable, Sendable {
     /// The underlying URLError, if available.
     /// This is nil when the error originates from Turbo.js status codes rather than iOS networking.
     public let urlError: URLError?
@@ -11,7 +11,7 @@ public struct WebError: LocalizedError, Equatable {
     public let errorCode: Int
 
     /// A description of the error.
-    public let description: String
+    public let message: String
 
     // MARK: - Helper Properties
 
@@ -65,7 +65,7 @@ public struct WebError: LocalizedError, Equatable {
             // (e.g., ATS, background-session, caching errors)
             return urlError.localizedDescription
         } else {
-            return description
+            return message
         }
     }
 
@@ -74,13 +74,13 @@ public struct WebError: LocalizedError, Equatable {
     public init(urlError: URLError) {
         self.urlError = urlError
         self.errorCode = urlError.code.rawValue
-        self.description = urlError.localizedDescription
+        self.message = urlError.localizedDescription
     }
 
-    public init(errorCode: Int, description: String?) {
+    public init(errorCode: Int, message: String?) {
         self.urlError = nil
         self.errorCode = errorCode
-        self.description = description ?? "Network Error"
+        self.message = message ?? "Network Error"
     }
 
     // MARK: - Factory Methods
@@ -90,23 +90,25 @@ public struct WebError: LocalizedError, Equatable {
         if let urlError = error as? URLError {
             return WebError(urlError: urlError)
         }
-        return WebError(errorCode: (error as NSError).code, description: error.localizedDescription)
+        return WebError(errorCode: (error as NSError).code, message: error.localizedDescription)
     }
 
-    /// Creates a WebError from a Turbo.js status code.
+    /// Internal-only: creates a WebError from a Turbo.js status code.
+    /// Public callers should use `init(urlError:)` or `init(errorCode:message:)`.
+    ///
     /// These are non-HTTP status codes used by Turbo.js to indicate network-level failures:
     /// - 0 = network failure (fetch failed)
     /// - -1 = timeout
     static func from(turboStatusCode: Int) -> WebError {
-        let description: String
+        let message: String
         switch turboStatusCode {
         case 0:
-            description = "Network failure"
+            message = "Network failure"
         case -1:
-            description = "Timeout"
+            message = "Timeout"
         default:
-            description = "Network error"
+            message = "Network error"
         }
-        return WebError(errorCode: turboStatusCode, description: description)
+        return WebError(errorCode: turboStatusCode, message: message)
     }
 }

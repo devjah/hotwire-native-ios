@@ -1,7 +1,7 @@
 import Foundation
 
 /// A unified error type for all Hotwire Native errors.
-public enum HotwireNativeError: LocalizedError, Equatable {
+public enum HotwireNativeError: LocalizedError, Equatable, Sendable {
     /// HTTP status code errors (4xx, 5xx)
     case http(HTTPError)
 
@@ -38,6 +38,20 @@ public enum HotwireNativeError: LocalizedError, Equatable {
         return nil
     }
 
+    /// Whether the error is recoverable by retrying the request.
+    /// Returns `false` for offline, timeout, configuration errors,
+    /// and non-transient HTTP errors where an immediate retry would not succeed.
+    public var isRetryable: Bool {
+        switch self {
+        case .http(let error):
+            return error.isRetryable
+        case .web(let error):
+            return !error.isOffline && !error.isTimeout
+        case .load:
+            return false
+        }
+    }
+
     /// Creates an error from a Turbo.js status code.
     /// - Positive status codes are HTTP errors
     /// - 0 = network failure, -1 = timeout, -2 = content type mismatch
@@ -48,7 +62,11 @@ public enum HotwireNativeError: LocalizedError, Equatable {
         case ...0:
             self = .web(WebError.from(turboStatusCode: statusCode))
         default:
-            self = .http(HTTPError.from(statusCode: statusCode))
+            if let httpError = HTTPError.from(statusCode: statusCode) {
+                self = .http(httpError)
+            } else {
+                self = .web(WebError(errorCode: statusCode, message: "Unexpected status code"))
+            }
         }
     }
 }

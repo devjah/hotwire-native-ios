@@ -105,7 +105,11 @@ extension ColdBootVisit: WKNavigationDelegate {
                 decisionHandler(.allow)
             } else {
                 decisionHandler(.cancel)
-                fail(with: .http(HTTPError.from(statusCode: httpResponse.statusCode)))
+                if let httpError = HTTPError.from(statusCode: httpResponse.statusCode) {
+                    fail(with: .http(httpError))
+                } else {
+                    fail(with: .load(.invalidResponse))
+                }
             }
         } else {
             if navigationResponse.response.url?.scheme == "blob" {

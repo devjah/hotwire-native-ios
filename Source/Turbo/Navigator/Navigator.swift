@@ -198,9 +198,8 @@ extension Navigator: SessionDelegate {
     }
 
     public func session(_ session: Session, didFailRequestForVisitable visitable: Visitable, error: HotwireNativeError) {
-        delegate?.visitableDidFailRequest(visitable, error: error) {
-            session.reload()
-        }
+        let retryHandler: (() -> Void)? = error.isRetryable ? { session.reload() } : nil
+        delegate?.visitableDidFailRequest(visitable, error: error, retryHandler: retryHandler)
     }
 
     public func session(_ session: Session, decidePolicyFor navigationAction: WKNavigationAction) -> WebViewPolicyManager.Decision {

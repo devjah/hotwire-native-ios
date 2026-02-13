@@ -7,12 +7,12 @@ final class HotwireNativeErrorTests: XCTestCase {
 
     func test_turboJSStatusCode_0_createsWebError_networkFailure() {
         let error = HotwireNativeError(turboJSStatusCode: 0)
-        XCTAssertEqual(error, .web(WebError(errorCode: 0, description: "Network failure")))
+        XCTAssertEqual(error, .web(WebError(errorCode: 0, message: "Network failure")))
     }
 
     func test_turboJSStatusCode_negative1_createsWebError_timeout() {
         let error = HotwireNativeError(turboJSStatusCode: -1)
-        XCTAssertEqual(error, .web(WebError(errorCode: -1, description: "Timeout")))
+        XCTAssertEqual(error, .web(WebError(errorCode: -1, message: "Timeout")))
     }
 
     func test_turboJSStatusCode_negative1_webError_isTimeout() {
@@ -88,21 +88,21 @@ final class HotwireNativeErrorTests: XCTestCase {
 
     func test_turboJSStatusCode_negative3_createsWebError() {
         let error = HotwireNativeError(turboJSStatusCode: -3)
-        XCTAssertEqual(error, .web(WebError(errorCode: -3, description: "Network error")))
+        XCTAssertEqual(error, .web(WebError(errorCode: -3, message: "Network error")))
     }
 
-    // MARK: - Unexpected Positive Non-HTTP Codes -> .unknownError
+    // MARK: - Unexpected Positive Non-HTTP Codes -> .web fallback
 
-    func test_turboJSStatusCode_1_mapsToUnknownHttpError() {
-        XCTAssertEqual(HotwireNativeError(turboJSStatusCode: 1), .http(.unknownError(statusCode: 1)))
+    func test_turboJSStatusCode_1_mapsToWebError() {
+        XCTAssertEqual(HotwireNativeError(turboJSStatusCode: 1), .web(WebError(errorCode: 1, message: "Unexpected status code")))
     }
 
-    func test_turboJSStatusCode_100_mapsToUnknownHttpError() {
-        XCTAssertEqual(HotwireNativeError(turboJSStatusCode: 100), .http(.unknownError(statusCode: 100)))
+    func test_turboJSStatusCode_100_mapsToWebError() {
+        XCTAssertEqual(HotwireNativeError(turboJSStatusCode: 100), .web(WebError(errorCode: 100, message: "Unexpected status code")))
     }
 
-    func test_turboJSStatusCode_301_mapsToUnknownHttpError() {
-        XCTAssertEqual(HotwireNativeError(turboJSStatusCode: 301), .http(.unknownError(statusCode: 301)))
+    func test_turboJSStatusCode_301_mapsToWebError() {
+        XCTAssertEqual(HotwireNativeError(turboJSStatusCode: 301), .web(WebError(errorCode: 301, message: "Unexpected status code")))
     }
 
     // MARK: - statusCode
@@ -115,12 +115,8 @@ final class HotwireNativeErrorTests: XCTestCase {
         XCTAssertEqual(HotwireNativeError.http(.server(.badGateway)).statusCode, 502)
     }
 
-    func test_statusCode_returnsCode_forUnknownHttpError() {
-        XCTAssertEqual(HotwireNativeError.http(.unknownError(statusCode: 100)).statusCode, 100)
-    }
-
     func test_statusCode_returnsNil_forWebError() {
-        XCTAssertNil(HotwireNativeError.web(WebError(errorCode: 0, description: nil)).statusCode)
+        XCTAssertNil(HotwireNativeError.web(WebError(errorCode: 0, message: nil)).statusCode)
     }
 
     func test_statusCode_returnsNil_forLoadError() {
@@ -136,7 +132,7 @@ final class HotwireNativeErrorTests: XCTestCase {
     }
 
     func test_urlError_returnsNil_forWebErrorWithoutURLError() {
-        let error = HotwireNativeError.web(WebError(errorCode: 0, description: nil))
+        let error = HotwireNativeError.web(WebError(errorCode: 0, message: nil))
         XCTAssertNil(error.urlError)
     }
 
@@ -146,6 +142,44 @@ final class HotwireNativeErrorTests: XCTestCase {
 
     func test_urlError_returnsNil_forLoadError() {
         XCTAssertNil(HotwireNativeError.load(.notPresent).urlError)
+    }
+
+    // MARK: - isRetryable
+
+    func test_isRetryable_http_requestTimeout_isTrue() {
+        XCTAssertTrue(HotwireNativeError.http(.client(.requestTimeout)).isRetryable)
+    }
+
+    func test_isRetryable_http_tooManyRequests_isTrue() {
+        XCTAssertTrue(HotwireNativeError.http(.client(.tooManyRequests)).isRetryable)
+    }
+
+    func test_isRetryable_http_notFound_isFalse() {
+        XCTAssertFalse(HotwireNativeError.http(.client(.notFound)).isRetryable)
+    }
+
+    func test_isRetryable_http_unauthorized_isFalse() {
+        XCTAssertFalse(HotwireNativeError.http(.client(.unauthorized)).isRetryable)
+    }
+
+    func test_isRetryable_http_serverError_isFalse() {
+        XCTAssertFalse(HotwireNativeError.http(.server(.internalServerError)).isRetryable)
+    }
+
+    func test_isRetryable_web_networkFailure_isTrue() {
+        XCTAssertTrue(HotwireNativeError.web(WebError(errorCode: 0, message: nil)).isRetryable)
+    }
+
+    func test_isRetryable_web_offline_isFalse() {
+        XCTAssertFalse(HotwireNativeError.web(WebError(urlError: URLError(.notConnectedToInternet))).isRetryable)
+    }
+
+    func test_isRetryable_web_timeout_isFalse() {
+        XCTAssertFalse(HotwireNativeError.web(WebError(errorCode: -1, message: "Timeout")).isRetryable)
+    }
+
+    func test_isRetryable_load_isFalse() {
+        XCTAssertFalse(HotwireNativeError.load(.contentTypeMismatch).isRetryable)
     }
 
     // MARK: - errorDescription

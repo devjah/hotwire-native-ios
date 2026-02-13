@@ -5,12 +5,12 @@ final class HTTPErrorTests: XCTestCase {
 
     // MARK: - from(statusCode:) Range Boundaries
 
-    func test_from_statusCode1_isUnknownError() {
-        XCTAssertEqual(HTTPError.from(statusCode: 1), .unknownError(statusCode: 1))
+    func test_from_statusCode1_returnsNil() {
+        XCTAssertNil(HTTPError.from(statusCode: 1))
     }
 
-    func test_from_statusCode399_isUnknownError() {
-        XCTAssertEqual(HTTPError.from(statusCode: 399), .unknownError(statusCode: 399))
+    func test_from_statusCode399_returnsNil() {
+        XCTAssertNil(HTTPError.from(statusCode: 399))
     }
 
     func test_from_statusCode400_isClientError() {
@@ -29,8 +29,8 @@ final class HTTPErrorTests: XCTestCase {
         XCTAssertEqual(HTTPError.from(statusCode: 599), .server(.other(statusCode: 599)))
     }
 
-    func test_from_statusCode600_isUnknownError() {
-        XCTAssertEqual(HTTPError.from(statusCode: 600), .unknownError(statusCode: 600))
+    func test_from_statusCode600_returnsNil() {
+        XCTAssertNil(HTTPError.from(statusCode: 600))
     }
 
     // MARK: - ClientError Round-Trips
@@ -129,16 +129,6 @@ final class HTTPErrorTests: XCTestCase {
         assertServerErrorRoundTrip(.other(statusCode: 599), statusCode: 599)
     }
 
-    // MARK: - unknownError statusCode
-
-    func test_unknownError_statusCode_roundTrips() {
-        XCTAssertEqual(HTTPError.unknownError(statusCode: 600).statusCode, 600)
-    }
-
-    func test_unknownError_statusCode_roundTrips_forLowCode() {
-        XCTAssertEqual(HTTPError.unknownError(statusCode: 1).statusCode, 1)
-    }
-
     // MARK: - HTTPError statusCode Delegation
 
     func test_statusCode_delegatesToClientError() {
@@ -181,10 +171,66 @@ final class HTTPErrorTests: XCTestCase {
         XCTAssertEqual(HTTPError.ServerError.other(statusCode: 599).errorDescription, "Server Error (599)")
     }
 
-    // MARK: - unknownError Description
+    // MARK: - ClientError isRetryable
 
-    func test_unknownError_description_includesStatusCode() {
-        XCTAssertEqual(HTTPError.unknownError(statusCode: 600).errorDescription, "HTTP Error (600)")
+    func test_clientError_requestTimeout_isRetryable() {
+        XCTAssertTrue(HTTPError.ClientError.requestTimeout.isRetryable)
+    }
+
+    func test_clientError_tooManyRequests_isRetryable() {
+        XCTAssertTrue(HTTPError.ClientError.tooManyRequests.isRetryable)
+    }
+
+    func test_clientError_badRequest_isNotRetryable() {
+        XCTAssertFalse(HTTPError.ClientError.badRequest.isRetryable)
+    }
+
+    func test_clientError_unauthorized_isNotRetryable() {
+        XCTAssertFalse(HTTPError.ClientError.unauthorized.isRetryable)
+    }
+
+    func test_clientError_forbidden_isNotRetryable() {
+        XCTAssertFalse(HTTPError.ClientError.forbidden.isRetryable)
+    }
+
+    func test_clientError_notFound_isNotRetryable() {
+        XCTAssertFalse(HTTPError.ClientError.notFound.isRetryable)
+    }
+
+    func test_clientError_other_isNotRetryable() {
+        XCTAssertFalse(HTTPError.ClientError.other(statusCode: 418).isRetryable)
+    }
+
+    // MARK: - ServerError isRetryable (all non-retryable)
+
+    func test_serverError_internalServerError_isNotRetryable() {
+        XCTAssertFalse(HTTPError.server(.internalServerError).isRetryable)
+    }
+
+    func test_serverError_serviceUnavailable_isNotRetryable() {
+        XCTAssertFalse(HTTPError.server(.serviceUnavailable).isRetryable)
+    }
+
+    func test_serverError_other_isNotRetryable() {
+        XCTAssertFalse(HTTPError.server(.other(statusCode: 599)).isRetryable)
+    }
+
+    // MARK: - HTTPError isRetryable Delegation
+
+    func test_httpError_client_requestTimeout_isRetryable() {
+        XCTAssertTrue(HTTPError.client(.requestTimeout).isRetryable)
+    }
+
+    func test_httpError_client_tooManyRequests_isRetryable() {
+        XCTAssertTrue(HTTPError.client(.tooManyRequests).isRetryable)
+    }
+
+    func test_httpError_client_notFound_isNotRetryable() {
+        XCTAssertFalse(HTTPError.client(.notFound).isRetryable)
+    }
+
+    func test_httpError_server_isNotRetryable() {
+        XCTAssertFalse(HTTPError.server(.badGateway).isRetryable)
     }
 
     // MARK: - Helpers

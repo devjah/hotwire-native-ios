@@ -434,7 +434,11 @@ extension Session: WebViewDelegate {
             let visitError: HotwireNativeError
             switch error {
             case .responseValidationFailed(reason: .unacceptableStatusCode(let code)):
-                visitError = .http(HTTPError.from(statusCode: code))
+                if let httpError = HTTPError.from(statusCode: code) {
+                    visitError = .http(httpError)
+                } else {
+                    visitError = .load(.invalidResponse)
+                }
             case .responseValidationFailed(reason: .missingURL),
                  .responseValidationFailed(reason: .invalidResponse):
                 visitError = .load(.invalidResponse)
@@ -457,6 +461,7 @@ extension Session: WebViewDelegate {
         guard let visit = currentVisit as? JavaScriptVisit,
               visit.identifier == visitIdentifier else { return }
 
+        retriedVisitIdentifiers.remove(visitIdentifier)
         visit.fail(with: error)
     }
 

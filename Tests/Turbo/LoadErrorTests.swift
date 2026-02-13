@@ -24,18 +24,18 @@ final class LoadErrorTests: XCTestCase {
     // MARK: - description
 
     func test_description_notPresent() {
-        XCTAssertEqual(LoadError.notPresent.description, "Turbo Not Present")
+        XCTAssertEqual(LoadError.notPresent.title, "Turbo Not Present")
     }
 
     func test_description_notReady() {
-        XCTAssertEqual(LoadError.notReady.description, "Turbo Not Ready")
+        XCTAssertEqual(LoadError.notReady.title, "Turbo Not Ready")
     }
 
     func test_description_contentTypeMismatch() {
-        XCTAssertEqual(LoadError.contentTypeMismatch.description, "Content Type Mismatch")
+        XCTAssertEqual(LoadError.contentTypeMismatch.title, "Content Type Mismatch")
     }
 
     func test_description_invalidResponse() {
-        XCTAssertEqual(LoadError.invalidResponse.description, "Invalid Response")
+        XCTAssertEqual(LoadError.invalidResponse.title, "Invalid Response")
     }
 }

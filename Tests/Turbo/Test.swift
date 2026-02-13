@@ -55,6 +55,7 @@ class TestSessionDelegate: NSObject, SessionDelegate {
     var sessionDidStartRequestCalled = false
     var sessionDidFinishRequestCalled = false
     var failedRequestError: HotwireNativeError? = nil
+    var allFailedRequestErrors: [HotwireNativeError] = []
     var sessionDidFailRequestCalled = false { didSet { didChange?() }}
     var sessionDidProposeVisitCalled = false
     var sessionDidProposeVisitToCrossOriginRedirectWasCalled = false
@@ -83,6 +84,7 @@ class TestSessionDelegate: NSObject, SessionDelegate {
     func session(_ session: Session, didFailRequestForVisitable visitable: Visitable, error: HotwireNativeError) {
         sessionDidFailRequestCalled = true
         failedRequestError = error
+        allFailedRequestErrors.append(error)
     }
 
     func session(_ session: Session, didProposeVisit proposal: VisitProposal) {

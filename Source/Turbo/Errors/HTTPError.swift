@@ -1,10 +1,9 @@
 import Foundation
 
 /// Errors representing HTTP status codes received from the server.
-public enum HTTPError: LocalizedError, Equatable {
+public enum HTTPError: LocalizedError, Equatable, Sendable {
     case client(ClientError)
     case server(ServerError)
-    case unknownError(statusCode: Int)
 
     /// The HTTP status code for this error.
     public var statusCode: Int {
@@ -13,8 +12,6 @@ public enum HTTPError: LocalizedError, Equatable {
             return error.statusCode
         case .server(let error):
             return error.statusCode
-        case .unknownError(let code):
-            return code
         }
     }
 
@@ -24,13 +21,20 @@ public enum HTTPError: LocalizedError, Equatable {
             return error.errorDescription
         case .server(let error):
             return error.errorDescription
-        case .unknownError(let code): 
-            return "HTTP Error (\(code))"
         }
     }
 
-    /// Creates an HttpError from an HTTP status code.
-    public static func from(statusCode: Int) -> HTTPError {
+    /// Whether the HTTP error is transient and worth retrying.
+    public var isRetryable: Bool {
+        switch self {
+        case .client(let error): return error.isRetryable
+        case .server: return false
+        }
+    }
+
+    /// Creates an HTTPError from an HTTP status code.
+    /// Returns `nil` for status codes outside the 400-599 error range.
+    public static func from(statusCode: Int) -> HTTPError? {
         if (400...499).contains(statusCode) {
             return .client(ClientError.from(statusCode: statusCode))
         }
@@ -39,7 +43,7 @@ public enum HTTPError: LocalizedError, Equatable {
             return .server(ServerError.from(statusCode: statusCode))
         }
 
-        return .unknownError(statusCode: statusCode)
+        return nil
     }
 }
 
@@ -101,6 +105,13 @@ extension HTTPError {
             case .preconditionRequired: return "Precondition Required"
             case .tooManyRequests: return "Too Many Requests"
             case .other(let code): return "Client Error (\(code))"
+            }
+        }
+
+        public var isRetryable: Bool {
+            switch self {
+            case .requestTimeout, .tooManyRequests: return true
+            default: return false
             }
         }
 

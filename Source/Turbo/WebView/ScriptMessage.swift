@@ -54,6 +54,7 @@ extension ScriptMessage {
     enum Name: String {
         case pageLoaded
         case pageLoadFailed
+        case turboIsReady
         case errorRaised
         case visitProposed
         case visitProposalScrollingToAnchor

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Errors representing when turbo.js or the native adapter fails to load on a page.
-public enum LoadError: LocalizedError, Equatable {
+public enum LoadError: LocalizedError, Equatable, Sendable {
     /// Turbo.js is not present on the page.
     case notPresent
 
@@ -14,7 +14,7 @@ public enum LoadError: LocalizedError, Equatable {
     /// The server returned a malformed or unexpected response.
     case invalidResponse
 
-    public var description: String {
+    public var title: String {
         switch self {
         case .notPresent: return "Turbo Not Present"
         case .notReady: return "Turbo Not Ready"

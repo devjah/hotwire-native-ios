@@ -3,7 +3,7 @@ import SwiftUI
 public protocol ErrorPresenter: UIViewController {
     typealias Handler = () -> Void
 
-    func presentError(_ error: Error, retryHandler: Handler?)
+    func presentError(_ error: HotwireNativeError, retryHandler: Handler?)
 }
 
 public extension ErrorPresenter {
@@ -14,7 +14,7 @@ public extension ErrorPresenter {
     /// - Parameters:
     ///   - error: presents the data in this error
     ///   - retryHandler: a user-triggered action to perform in case the error is recoverable
-    func presentError(_ error: Error, retryHandler: Handler?) {
+    func presentError(_ error: HotwireNativeError, retryHandler: Handler?) {
         let errorView = ErrorView(error: error, shouldShowRetryButton: retryHandler != nil) {
             retryHandler?()
             self.removeErrorViewController()
@@ -40,7 +40,7 @@ extension UIViewController: ErrorPresenter {}
 // MARK: Private
 
 private struct ErrorView: View {
-    let error: Error
+    let error: HotwireNativeError
     let shouldShowRetryButton: Bool
     let handler: ErrorPresenter.Handler?
 
@@ -70,11 +70,10 @@ private struct ErrorView: View {
 
 private struct ErrorView_Previews: PreviewProvider {
     static var previews: some View {
-        return ErrorView(error: NSError(
-            domain: "com.example.error",
-            code: 1001,
-            userInfo: [NSLocalizedDescriptionKey: "Could not connect to the server."]
-        ), shouldShowRetryButton: true) {}
+        return ErrorView(
+            error: .web(WebError(errorCode: 0, message: "Could not connect to the server.")),
+            shouldShowRetryButton: true
+        ) {}
     }
 }
 

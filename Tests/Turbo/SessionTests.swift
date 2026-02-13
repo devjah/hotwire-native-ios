@@ -95,15 +95,19 @@ class SessionTests: XCTestCase {
     }
 
     @MainActor
-    func test_coldBootVisit_whenVisitFailsFromMissingLibrary_providesAnPageLoadError() async throws {
-        await visit("/missing-library", timeout: turboTimeout + defaultTimeout)
+    func test_coldBootVisit_whenVisitFailsFromMissingLibrary_providesNotReadyAndNotPresentErrors() async throws {
+        let expectation = self.expectation(description: "Wait for both load errors.")
+        expectation.expectedFulfillmentCount = 2
+        sessionDelegate.didChange = { expectation.fulfill() }
+
+        let visitable = TestVisitable(url: url("/missing-library"))
+        session.visit(visitable)
+        await fulfillment(of: [expectation], timeout: turboTimeout + defaultTimeout)
 
         XCTAssertTrue(sessionDelegate.sessionDidFailRequestCalled)
-        XCTAssertTrue(sessionDelegate.sessionDidFinishRequestCalled)
-
-        XCTAssertNotNil(sessionDelegate.failedRequestError)
-        let error = try XCTUnwrap(sessionDelegate.failedRequestError)
-        XCTAssertEqual(error, .load(.notPresent))
+        XCTAssertEqual(sessionDelegate.allFailedRequestErrors.count, 2)
+        XCTAssertEqual(sessionDelegate.allFailedRequestErrors[0], .load(.notReady))
+        XCTAssertEqual(sessionDelegate.allFailedRequestErrors[1], .load(.notPresent))
     }
 
     // MARK: - Server
