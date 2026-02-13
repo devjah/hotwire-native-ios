@@ -162,8 +162,16 @@ final class HotwireNativeErrorTests: XCTestCase {
         XCTAssertFalse(HotwireNativeError.http(.client(.unauthorized)).isRetryable)
     }
 
-    func test_isRetryable_http_serverError_isFalse() {
+    func test_isRetryable_http_internalServerError_isFalse() {
         XCTAssertFalse(HotwireNativeError.http(.server(.internalServerError)).isRetryable)
+    }
+
+    func test_isRetryable_http_serviceUnavailable_isTrue() {
+        XCTAssertTrue(HotwireNativeError.http(.server(.serviceUnavailable)).isRetryable)
+    }
+
+    func test_isRetryable_http_gatewayTimeout_isTrue() {
+        XCTAssertTrue(HotwireNativeError.http(.server(.gatewayTimeout)).isRetryable)
     }
 
     func test_isRetryable_web_networkFailure_isTrue() {

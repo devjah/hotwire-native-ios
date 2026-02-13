@@ -28,7 +28,7 @@ public enum HTTPError: LocalizedError, Equatable, Sendable {
     public var isRetryable: Bool {
         switch self {
         case .client(let error): return error.isRetryable
-        case .server: return false
+        case .server(let error): return error.isRetryable
         }
     }
 
@@ -171,6 +171,13 @@ extension HTTPError {
             case .gatewayTimeout: return "Gateway Timeout"
             case .httpVersionNotSupported: return "HTTP Version Not Supported"
             case .other(let code): return "Server Error (\(code))"
+            }
+        }
+
+        public var isRetryable: Bool {
+            switch self {
+            case .serviceUnavailable, .gatewayTimeout: return true
+            default: return false
             }
         }
 

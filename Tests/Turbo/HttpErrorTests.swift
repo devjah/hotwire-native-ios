@@ -201,18 +201,26 @@ final class HTTPErrorTests: XCTestCase {
         XCTAssertFalse(HTTPError.ClientError.other(statusCode: 418).isRetryable)
     }
 
-    // MARK: - ServerError isRetryable (all non-retryable)
+    // MARK: - ServerError isRetryable
 
-    func test_serverError_internalServerError_isNotRetryable() {
-        XCTAssertFalse(HTTPError.server(.internalServerError).isRetryable)
+    func test_serverError_serviceUnavailable_isRetryable() {
+        XCTAssertTrue(HTTPError.ServerError.serviceUnavailable.isRetryable)
     }
 
-    func test_serverError_serviceUnavailable_isNotRetryable() {
-        XCTAssertFalse(HTTPError.server(.serviceUnavailable).isRetryable)
+    func test_serverError_gatewayTimeout_isRetryable() {
+        XCTAssertTrue(HTTPError.ServerError.gatewayTimeout.isRetryable)
+    }
+
+    func test_serverError_internalServerError_isNotRetryable() {
+        XCTAssertFalse(HTTPError.ServerError.internalServerError.isRetryable)
+    }
+
+    func test_serverError_badGateway_isNotRetryable() {
+        XCTAssertFalse(HTTPError.ServerError.badGateway.isRetryable)
     }
 
     func test_serverError_other_isNotRetryable() {
-        XCTAssertFalse(HTTPError.server(.other(statusCode: 599)).isRetryable)
+        XCTAssertFalse(HTTPError.ServerError.other(statusCode: 599).isRetryable)
     }
 
     // MARK: - HTTPError isRetryable Delegation
@@ -229,7 +237,11 @@ final class HTTPErrorTests: XCTestCase {
         XCTAssertFalse(HTTPError.client(.notFound).isRetryable)
     }
 
-    func test_httpError_server_isNotRetryable() {
+    func test_httpError_server_serviceUnavailable_isRetryable() {
+        XCTAssertTrue(HTTPError.server(.serviceUnavailable).isRetryable)
+    }
+
+    func test_httpError_server_badGateway_isNotRetryable() {
         XCTAssertFalse(HTTPError.server(.badGateway).isRetryable)
     }
 

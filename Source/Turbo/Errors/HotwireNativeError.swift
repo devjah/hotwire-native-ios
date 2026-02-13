@@ -39,8 +39,8 @@ public enum HotwireNativeError: LocalizedError, Equatable, Sendable {
     }
 
     /// Whether the error is recoverable by retrying the request.
-    /// Returns `false` for offline, timeout, configuration errors,
-    /// and non-transient HTTP errors where an immediate retry would not succeed.
+    /// HTTP 408/429 and 503/504 are retryable. Network-level timeouts,
+    /// offline errors, and configuration errors are not.
     public var isRetryable: Bool {
         switch self {
         case .http(let error):
