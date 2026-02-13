@@ -465,6 +465,7 @@ extension Session: WebViewDelegate {
 
         // Only retry once per visit to prevent infinite loops.
         guard !retriedVisitIdentifiers.contains(visitIdentifier) else {
+            retriedVisitIdentifiers.remove(visitIdentifier)
             visit.fail(with: error)
             return
         }
