@@ -45,8 +45,8 @@ public enum HotwireNativeError: LocalizedError, Equatable, Sendable {
         switch self {
         case .http(let error):
             return error.isRetryable
-        case .web(let error):
-            return !error.isOffline && !error.isTimeout
+        case .web:
+            return true
         case .load:
             return false
         }
