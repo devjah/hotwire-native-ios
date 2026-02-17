@@ -400,10 +400,10 @@ extension Session: WebViewDelegate {
 
     private func resolveRedirect(to location: URL, identifier: String, statusCode: Int) async {
         do {
-            let result = try await RedirectHandler().resolve(location: location)
+            let result = try await JSFetchRecoveryHandler().resolve(location: location)
             switch result {
             case .noRedirect:
-                // The server is reachable (RedirectHandler confirmed an HTTP response
+                // The server is reachable (JSFetchRecoveryHandler confirmed an HTTP response
                 // with no redirect). The Turbo.js fetch failure was transient —
                 // retry with a cold boot visit before showing an error.
                 log("resolveRedirect: no redirect, retrying",
@@ -433,7 +433,7 @@ extension Session: WebViewDelegate {
                     visitIdentifier: identifier
                 )
             }
-        } catch let error as RedirectHandlerError {
+        } catch let error as JSFetchRecoveryError {
             let visitError: HotwireNativeError
             switch error {
             case .responseValidationFailed(reason: .missingURL),

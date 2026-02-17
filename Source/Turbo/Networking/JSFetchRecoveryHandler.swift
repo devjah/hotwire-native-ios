@@ -1,6 +1,6 @@
 import Foundation
 
-enum RedirectHandlerError: LocalizedError {
+enum JSFetchRecoveryError: LocalizedError {
     case requestFailed(Error)
     case responseValidationFailed(reason: ResponseValidationFailureReason)
 
@@ -13,19 +13,19 @@ enum RedirectHandlerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .requestFailed(let error):
-            return "Redirect resolution failed: \(error.localizedDescription)"
+            return "Failed to recover js fetch: \(error.localizedDescription)"
         case .responseValidationFailed(let reason):
             switch reason {
             case .missingURL:
-                return "Redirect resolution failed: missing URL"
+                return "Failed to validate js fetch resolution response: missing URL"
             case .invalidResponse:
-                return "Redirect resolution response invalid"
+                return "Failed to validate js fetch resolution response: response invalid"
             }
         }
     }
 }
 
-struct RedirectHandler {
+struct JSFetchRecoveryHandler {
     enum Result {
         case noRedirect
         case sameOriginRedirect(URL)
@@ -40,7 +40,7 @@ struct RedirectHandler {
             let httpResponse = try validateResponse(response)
 
             guard let responseUrl = httpResponse.url else {
-                throw RedirectHandlerError.responseValidationFailed(reason: .missingURL)
+                throw JSFetchRecoveryError.responseValidationFailed(reason: .missingURL)
             }
 
             let isRedirect = location != responseUrl
@@ -55,16 +55,16 @@ struct RedirectHandler {
             }
 
             return .sameOriginRedirect(responseUrl)
-        } catch let error as RedirectHandlerError {
+        } catch let error as JSFetchRecoveryError {
             throw error
         } catch {
-            throw RedirectHandlerError.requestFailed(error)
+            throw JSFetchRecoveryError.requestFailed(error)
         }
     }
 
     private func validateResponse(_ response: URLResponse) throws -> HTTPURLResponse {
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw RedirectHandlerError.responseValidationFailed(reason: .invalidResponse)
+            throw JSFetchRecoveryError.responseValidationFailed(reason: .invalidResponse)
         }
 
         return httpResponse
