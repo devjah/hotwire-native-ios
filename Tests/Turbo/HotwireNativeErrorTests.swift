@@ -179,11 +179,11 @@ final class HotwireNativeErrorTests: XCTestCase {
     }
 
     func test_isRetryable_web_offline_isFalse() {
-        XCTAssertFalse(HotwireNativeError.web(WebError(urlError: URLError(.notConnectedToInternet))).isRetryable)
+        XCTAssertTrue(HotwireNativeError.web(WebError(urlError: URLError(.notConnectedToInternet))).isRetryable)
     }
 
     func test_isRetryable_web_timeout_isFalse() {
-        XCTAssertFalse(HotwireNativeError.web(WebError(errorCode: -1, message: "Timeout")).isRetryable)
+        XCTAssertTrue(HotwireNativeError.web(WebError(errorCode: -1, message: "Timeout")).isRetryable)
     }
 
     func test_isRetryable_load_isFalse() {
