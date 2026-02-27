@@ -200,7 +200,7 @@ extension Navigator: SessionDelegate {
     }
 
     public func session(_ session: Session, didFailRequestForVisitable visitable: Visitable, error: HotwireNativeError) {
-        let retryHandler: (() -> Void)? = error.isRetryable ? { session.reload() } : nil
+        let retryHandler: (() -> Void)? = { session.reload() }
         delegate?.visitableDidFailRequest(visitable, error: error, retryHandler: retryHandler)
     }
 
