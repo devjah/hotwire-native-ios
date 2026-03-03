@@ -434,6 +434,11 @@ extension Session: WebViewDelegate {
                 )
             }
         } catch let error as JSFetchRecoveryError {
+            log("resolveRedirect: recovery failed",
+                ["location": location,
+                 "visitIdentifier": identifier,
+                 "error": error.localizedDescription])
+
             let visitError: HotwireNativeError
             switch error {
             case .responseValidationFailed(reason: .missingURL),
@@ -444,6 +449,11 @@ extension Session: WebViewDelegate {
             }
             await retryOrFailCurrentVisit(with: visitError, visitIdentifier: identifier)
         } catch {
+            log("resolveRedirect: unexpected error",
+                ["location": location,
+                 "visitIdentifier": identifier,
+                 "error": "\(error)"])
+
             await retryOrFailCurrentVisit(
                 with: .web(WebError(error)),
                 visitIdentifier: identifier

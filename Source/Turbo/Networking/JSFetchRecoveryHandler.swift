@@ -33,6 +33,8 @@ struct JSFetchRecoveryHandler {
     }
 
     func resolve(location: URL) async throws -> Result {
+        logger.debug("[JSFetchRecoveryHandler] resolve: \(location.absoluteString)")
+
         do {
             var request = URLRequest(url: location)
             request.timeoutInterval = 30
@@ -47,13 +49,16 @@ struct JSFetchRecoveryHandler {
             let redirectIsCrossOrigin = isRedirect && location.host != responseUrl.host
 
             guard isRedirect else {
+                logger.debug("[JSFetchRecoveryHandler] no redirect, status: \(httpResponse.statusCode)")
                 return .noRedirect
             }
 
             if redirectIsCrossOrigin {
+                logger.debug("[JSFetchRecoveryHandler] cross-origin redirect to \(responseUrl.absoluteString)")
                 return .crossOriginRedirect(responseUrl)
             }
 
+            logger.debug("[JSFetchRecoveryHandler] same-origin redirect to \(responseUrl.absoluteString)")
             return .sameOriginRedirect(responseUrl)
         } catch let error as JSFetchRecoveryError {
             throw error
