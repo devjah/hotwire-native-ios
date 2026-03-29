@@ -65,9 +65,11 @@ public final class SafariViewControllerRouteDecisionHandler: RouteDecisionHandle
                     viewController: UIViewController) {
         let safariViewController = SFSafariViewController(url: externalURL)
         safariViewController.modalPresentationStyle = .pageSheet
+        #if !os(visionOS)
         if #available(iOS 15.0, *) {
             safariViewController.preferredControlTintColor = .tintColor
         }
+        #endif
 
         viewController.present(safariViewController, animated: true)
     }
