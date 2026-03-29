@@ -70,7 +70,7 @@ open class HotwireTabBarController: UITabBarController, NavigationHandler {
         navigatorsByIdentifier.removeAll()
         let contexts = hotwireTabs.map { tabContext(for: $0) }
 
-        if #available(iOS 18.0, *) {
+        if #available(iOS 18.0, visionOS 2.0, *) {
             tabs = contexts.map { makeTab(from: $0) }
 
             if selectedTab == nil, let firstTab = tabs.first {
@@ -102,7 +102,7 @@ open class HotwireTabBarController: UITabBarController, NavigationHandler {
         return context.viewController
     }
 
-    @available(iOS 18.0, *)
+    @available(iOS 18.0, visionOS 2.0, *)
     private func makeTab(from context: TabContext) -> UITab {
         return context.tab.makeTab(context.viewController)
     }
@@ -122,7 +122,7 @@ open class HotwireTabBarController: UITabBarController, NavigationHandler {
     }
 
     func currentHotwireTab() -> HotwireTab {
-        if #available(iOS 18.0, *),
+        if #available(iOS 18.0, visionOS 2.0, *),
            let identifier = selectedTab?.identifier,
            let match = hotwireTabs.first(where: { $0.id == identifier }) {
             return match
@@ -149,7 +149,7 @@ extension HotwireTabBarController: UITabBarControllerDelegate {
         activeNavigator.start()
     }
 
-    @available(iOS 18.0, *)
+    @available(iOS 18.0, visionOS 2.0, *)
     public func tabBarController(_ tabBarController: UITabBarController, didSelectTab selectedTab: UITab, previousTab: UITab?) {
         activeNavigator.start()
     }
