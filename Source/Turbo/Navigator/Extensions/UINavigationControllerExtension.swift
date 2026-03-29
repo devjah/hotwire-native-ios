@@ -14,11 +14,13 @@ extension UINavigationController {
         switch proposal.modalStyle {
         case .medium:
             modalPresentationStyle = .automatic
+            #if !os(visionOS)
             if #available(iOS 15.0, *) {
                 if let sheet = sheetPresentationController {
                     sheet.detents = [.medium(), .large()]
                 }
             }
+            #endif
         case .large:
             modalPresentationStyle = .automatic
         case .full:
