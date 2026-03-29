@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 extension HotwireTab {
-    @available(iOS 18.0, *)
+    @available(iOS 18.0, visionOS 2.0, *)
     func makeTab(_ viewController: UIViewController) -> UITab {
         if isSearchTab {
             return UISearchTab(
