@@ -13,6 +13,10 @@ public extension VisitProposal {
         properties.modalStyle
     }
 
+    var modalPresentation: Navigation.ModalPresentation {
+        properties.modalPresentation
+    }
+
     var pullToRefreshEnabled: Bool {
         properties.pullToRefreshEnabled
     }

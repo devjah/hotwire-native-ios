@@ -16,7 +16,17 @@
       "properties":{
         "context":"modal",
         "modal_style":"medium",
-        "modal_dismiss_gesture_enabled": true
+        "modal_dismiss_gesture_enabled": true,
+        "modal_presentation":"stack"
+      }
+    },
+    {
+      "patterns":[
+        "/newUnknownModalPresentation$"
+      ],
+      "properties":{
+        "context":"modal",
+        "modal_presentation":"fancy"
       }
     },
     {
