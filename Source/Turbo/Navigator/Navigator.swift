@@ -11,7 +11,20 @@ public class Navigator {
     public weak var delegate: NavigatorDelegate?
 
     public var rootViewController: UINavigationController { hierarchyController.navigationController }
+
+    /// The root modal navigation controller. Stacked modals presented via the
+    /// `modal_presentation: "stack"` path property are presented on top of it —
+    /// see `topmostModalNavigationController` for the one currently visible.
     public var modalRootViewController: UINavigationController { hierarchyController.modalNavigationController }
+
+    /// The navigation controller for the topmost presented modal.
+    ///
+    /// When stacked modals are presented via the `modal_presentation: "stack"` path
+    /// property, returns the most recently presented modal navigation controller;
+    /// otherwise returns `modalRootViewController`. Use this to configure the
+    /// currently visible modal's presentation, e.g. its `sheetPresentationController`.
+    public var topmostModalNavigationController: UINavigationController { hierarchyController.topmostModalNavigationController }
+
     public var activeNavigationController: UINavigationController { hierarchyController.activeNavigationController }
     public var activeWebView: WKWebView {
         if activeNavigationController == rootViewController {
@@ -279,6 +292,19 @@ extension Navigator: NavigationHierarchyControllerDelegate {
         case .modal:
             modalSession.visit(newTopmostVisitable, action: .replace)
         }
+    }
+
+    func reactivateVisitable(_ visitable: Visitable, on navigationStack: NavigationHierarchyController.NavigationStackType) {
+        let session = navigationStack == .main ? session : modalSession
+        guard session.activeVisitable !== visitable else { return }
+
+        session.visit(visitable, action: .restore)
+    }
+
+    func deactivateVisitable(_ visitable: Visitable, on navigationStack: NavigationHierarchyController.NavigationStackType) {
+        let session = navigationStack == .main ? session : modalSession
+        session.visitableViewWillDisappear(visitable)
+        session.visitableViewDidDisappear(visitable)
     }
 }
 

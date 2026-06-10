@@ -647,6 +647,8 @@ final class NavigationHierarchyControllerTests: XCTestCase {
 private class EmptyNavigationDelegate: NavigationHierarchyControllerDelegate {
     func visit(_: Visitable, on: NavigationHierarchyController.NavigationStackType, with: VisitOptions) {}
     func refreshVisitable(navigationStack: NavigationHierarchyController.NavigationStackType, newTopmostVisitable: any Visitable) { }
+    func reactivateVisitable(_: Visitable, on: NavigationHierarchyController.NavigationStackType) { }
+    func deactivateVisitable(_: Visitable, on: NavigationHierarchyController.NavigationStackType) { }
 }
 
 // MARK: - VisitProposal extension
