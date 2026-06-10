@@ -26,6 +26,14 @@ import UIKit
 /// - **Custom Navigation Setups:**
 ///   For completely custom navigation setups or container controllers, you will need to implement similar logic to manage the `appearReason` and `disappearReason` of `VisitableViewController` instances.
 open class HotwireNavigationController: UINavigationController {
+    /// Invoked after this navigation controller's view disappears because it was
+    /// dismissed from a modal presentation (or an ancestor was).
+    ///
+    /// `NavigationHierarchyController` uses this to keep stacked modal state in sync
+    /// when a stacked modal is dismissed outside of its control — e.g. an interactive
+    /// swipe-down or a direct `dismiss(animated:)` call from app code.
+    var modalDismissalHandler: (() -> Void)?
+
     open override func pushViewController(_ viewController: UIViewController, animated: Bool) {
         if let visitableViewController = viewController as? VisitableViewController {
             visitableViewController.appearReason = .pushedOntoNavigationStack
@@ -94,5 +102,13 @@ open class HotwireNavigationController: UINavigationController {
         }
 
         super.viewWillDisappear(animated)
+    }
+
+    open override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+
+        if isBeingDismissed {
+            modalDismissalHandler?()
+        }
     }
 }
