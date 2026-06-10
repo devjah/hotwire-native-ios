@@ -10,6 +10,47 @@ This native Swift library integrates with your [Hotwire](https://hotwired.dev) w
 
 Read more on [native.hotwired.dev](https://native.hotwired.dev).
 
+## Fork additions
+
+### Stacked modals (`modal_presentation: "stack"`)
+
+A modal-context path rule can opt into presenting as a new modal *on top of* the
+currently presented modal — mirroring stacked dialog destinations on Android —
+instead of pushing onto the modal navigation stack:
+
+```json
+{
+  "patterns": ["/select_options"],
+  "properties": {
+    "context": "modal",
+    "modal_presentation": "stack"
+  }
+}
+```
+
+- All stacked modals share the modal session's web view; selections handed back via
+  `sessionStorage` + `pageshow` keep working unchanged.
+- `modal_style` applies per stacked modal (e.g. `medium` for a half-height sheet).
+- Navigating back (`history.back()`) from a stacked modal dismisses it; default-context
+  navigation dismisses the entire modal chain.
+- When no modal is presented, `stack` behaves like `default`. Servers that omit the
+  property get the existing push behavior, so the property is safe to roll out
+  independently of app releases.
+- Requires `Hotwire.config.defaultNavigationController` to return a
+  `HotwireNavigationController` (the default) so interactive and app-initiated
+  dismissals are detected.
+
+### Web-initiated history restorations propose natively
+
+Upstream, a web-side `history.back()` is handled entirely inside the web view:
+Turbo restores the previous page in place while the native screen for the *old*
+page stays on top of the stack (a phantom entry). This fork's `turbo.js` adapter
+cancels web-initiated restoration visits and forwards them to the native side as
+a `restore`-action proposal, so the navigator genuinely pops the pushed screen —
+or dismisses stacked modal(s) — down to the screen the web history went back to,
+then restores there. Native-initiated visits (including the restore visits the
+session issues on pop-back) are unaffected.
+
 ## Contributing
 
 Hotwire Native for iOS is open-source software, freely distributable under the terms of an [MIT-style license](LICENSE). The [source code is hosted on GitHub](https://github.com/hotwired/hotwire-native-bridge). Development is sponsored by [37signals](https://37signals.com/).

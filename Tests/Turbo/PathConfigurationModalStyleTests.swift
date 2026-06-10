@@ -40,6 +40,20 @@ class PathConfigurationModalStyleTests: XCTestCase {
         XCTAssertEqual(configuration.properties(for: "/unknown").modalStyle, .large)
     }
 
+    // MARK: -  Modal presentation
+
+    func test_stackModalPresentation() {
+        XCTAssertEqual(configuration.properties(for: "/newMedium").modalPresentation, .stack)
+    }
+
+    func test_missingModalPresentation_returnsDefault() {
+        XCTAssertEqual(configuration.properties(for: "/new").modalPresentation, .default)
+    }
+
+    func test_unknownModalPresentation_returnsDefault() {
+        XCTAssertEqual(configuration.properties(for: "/newUnknownModalPresentation").modalPresentation, .default)
+    }
+
     // MARK: -  Modal properties
 
     func test_modalDismissEnabled() {

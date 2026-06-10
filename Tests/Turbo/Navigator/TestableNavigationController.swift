@@ -32,8 +32,14 @@ class TestableNavigationController: HotwireNavigationController {
     }
 
     override func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
+        let dismissedViewController = _presentedViewController
         _presentedViewController = nil
         super.dismiss(animated: false, completion: completion)
+
+        // Simulate UIKit's dismissal lifecycle, which doesn't run synchronously under
+        // test: the dismissed controller's `viewDidDisappear` (`isBeingDismissed`)
+        // fires its modal dismissal handler.
+        (dismissedViewController as? HotwireNavigationController)?.modalDismissalHandler?()
     }
 
     // MARK: Private

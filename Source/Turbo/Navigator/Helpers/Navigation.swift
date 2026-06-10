@@ -21,4 +21,9 @@ public enum Navigation {
         case pageSheet = "page_sheet"
         case formSheet = "form_sheet"
     }
+
+    public enum ModalPresentation: String {
+        case `default`
+        case stack
+    }
 }

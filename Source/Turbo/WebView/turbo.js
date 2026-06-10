@@ -39,6 +39,7 @@
     }
 
     visitLocationWithOptionsAndRestorationIdentifier(location, options, restorationIdentifier) {
+      this.nativeInitiatedVisitPending = true
       if (window.Turbo) {
         if (Turbo.navigator.locationWithActionIsSamePage(new URL(location), options.action)) {
           // Skip the same-page anchor scrolling behavior for visits initiated from the native
@@ -125,6 +126,20 @@
     }
 
     visitStarted(visit) {
+      const nativeInitiated = this.nativeInitiatedVisitPending
+      this.nativeInitiatedVisitPending = false
+
+      // A restoration visit the native side didn't initiate comes from web-side
+      // history navigation (e.g. `history.back()`). Rendering it in place would
+      // leave the previous screen's native view controller on top of the stack
+      // showing the wrong page. Cancel it and propose to the native side instead,
+      // which pops (or dismisses) back to the covered screen and restores there.
+      if (!nativeInitiated && window.Turbo && visit.action === "restore") {
+        visit.cancel()
+        this.postMessage("visitProposed", { location: visit.location.toString(), options: { action: "restore" } })
+        return
+      }
+
       this.currentVisit = visit
       this.postMessage("visitStarted", { identifier: visit.identifier, hasCachedSnapshot: visit.hasCachedSnapshot(), isPageRefresh: visit.isPageRefresh || false })
       this.issueRequestForVisitWithIdentifier(visit.identifier)

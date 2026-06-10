@@ -26,6 +26,37 @@ public extension PathProperties {
         return modalStyle
     }
 
+    /// Determines how a modal-context visit is presented while another modal is
+    /// already on screen.
+    ///
+    /// - `default`: pushes onto the current modal navigation stack (existing behavior).
+    /// - `stack`: presents the destination as a new modal on top of the current one,
+    ///   mirroring stacked dialog destinations on Android.
+    ///
+    /// ```json
+    /// {
+    ///   "rules": [
+    ///     {
+    ///       "patterns": ["/select_options"],
+    ///       "properties": {
+    ///         "context": "modal",
+    ///         "modal_presentation": "stack"
+    ///       }
+    ///     }
+    ///   ]
+    /// }
+    /// ```
+    ///
+    /// - Note: When no modal is presented, `stack` behaves exactly like `default`.
+    var modalPresentation: Navigation.ModalPresentation {
+        guard let rawValue = self["modal_presentation"] as? String,
+              let modalPresentation = Navigation.ModalPresentation(rawValue: rawValue) else {
+            return .default
+        }
+
+        return modalPresentation
+    }
+
     var pullToRefreshEnabled: Bool {
         self["pull_to_refresh_enabled"] as? Bool ?? true
     }
