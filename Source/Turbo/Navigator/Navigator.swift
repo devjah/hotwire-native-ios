@@ -153,7 +153,11 @@ public class Navigator {
 
     /// A default delegate implementation if none is provided.
     private let navigatorDelegate = DefaultNavigatorDelegate()
-    private var backgroundTerminatedWebViewSessions = [Session]()
+    /// Sessions whose web content process terminated while the app was in the
+    /// background. Drained on the next foreground (`appWillEnterForeground` and
+    /// `appDidBecomeActive`). `internal` rather than `private` so tests can seed
+    /// and assert the drain.
+    var backgroundTerminatedWebViewSessions = [Session]()
     private let configuration: Navigator.Configuration
     private let appLifecycleObserver: AppLifecycleObserver
 
@@ -318,8 +322,13 @@ extension Navigator {
         // Don't reload the web view if the app is in the background.
         // Instead, save the session in `backgroundTerminatedWebViewSessions`
         // and reload it when the app is back in foreground.
+        // Note: `applicationState` remains `.background` while the app is
+        // foregrounding (until it becomes active), so terminations reported
+        // during that window also land here.
         if appLifecycleObserver.appState == .background {
-            backgroundTerminatedWebViewSessions.append(session)
+            if !backgroundTerminatedWebViewSessions.contains(where: { $0 === session }) {
+                backgroundTerminatedWebViewSessions.append(session)
+            }
             return
         }
 
@@ -385,6 +394,16 @@ extension Navigator: AppLifecycleObserverDelegate {
     }
 
     func appWillEnterForeground() {
+        inspectAllSessions()
+    }
+
+    func appDidBecomeActive() {
+        // Web content process terminations are often reported while the app is
+        // still foregrounding — `applicationState` is `.background` until the
+        // app becomes active — so `reloadIfPermitted` queues those sessions
+        // *after* `appWillEnterForeground` has already inspected them, leaving
+        // blank web views behind. Inspect again now that the app is active to
+        // drain anything queued during that window.
         inspectAllSessions()
     }
 }
