@@ -4,6 +4,7 @@ import UIKit
 protocol AppLifecycleObserverDelegate: AnyObject {
     func appDidEnterBackground()
     func appWillEnterForeground()
+    func appDidBecomeActive()
 }
 
 final class AppLifecycleObserver {
@@ -29,6 +30,13 @@ final class AppLifecycleObserver {
             name: UIApplication.willEnterForegroundNotification,
             object: nil
         )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
     }
 
     @objc private func appDidEnterBackground() {
@@ -37,6 +45,10 @@ final class AppLifecycleObserver {
 
     @objc private func appWillEnterForeground() {
         delegate?.appWillEnterForeground()
+    }
+
+    @objc private func appDidBecomeActive() {
+        delegate?.appDidBecomeActive()
     }
 
     deinit {
