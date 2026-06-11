@@ -40,6 +40,18 @@ instead of pushing onto the modal navigation stack:
   `HotwireNavigationController` (the default) so interactive and app-initiated
   dismissals are detected.
 
+### Recover web views killed while the app was suspended
+
+iOS reclaims WKWebView WebContent processes from suspended apps; the
+terminations are reported while the app is foregrounding, when
+`applicationState` is still `.background`. Upstream queues those sessions in
+`backgroundTerminatedWebViewSessions` but only drains the queue on
+`willEnterForeground` — which has already passed — so the sessions are never
+reloaded and their web views stay blank until a manual refresh (WebKit's own
+crash auto-reload is disabled whenever the navigation delegate implements
+`webViewWebContentProcessDidTerminate`, so nothing else recovers them either).
+This fork drains the queue again on `didBecomeActive`.
+
 ### Web-initiated history restorations propose natively
 
 Upstream, a web-side `history.back()` is handled entirely inside the web view:
