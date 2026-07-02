@@ -83,6 +83,55 @@ final class NavigationHierarchyControllerTests: XCTestCase {
         assertVisited(url: oneURL, on: .main)
     }
 
+    func test_customViewController_visitingDifferentURL_pushesOnMainStack() {
+        let navigator = makeCustomViewControllerNavigator()
+
+        navigator.route(oneURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+        XCTAssert(navigationController.topViewController is CustomViewController)
+
+        navigator.route(twoURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 2)
+        XCTAssert(navigationController.topViewController is CustomViewController)
+    }
+
+    func test_customViewController_visitingSameURL_replacesOnMainStack() {
+        let navigator = makeCustomViewControllerNavigator()
+
+        navigator.route(oneURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+
+        navigator.route(oneURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+        XCTAssert(navigationController.topViewController is CustomViewController)
+    }
+
+    func test_customViewController_visitingPreviousURL_popsOnMainStack() {
+        let navigator = makeCustomViewControllerNavigator()
+
+        navigator.route(oneURL)
+        navigator.route(twoURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 2)
+
+        navigator.route(oneURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+        XCTAssert(navigationController.topViewController is CustomViewController)
+    }
+
+    func test_unroutedViewController_onStack_visitPushesOnMainStack() {
+        // A view controller pushed onto the stack outside the navigator (e.g. mixed native
+        // navigation) has no routed location. A subsequent visit must treat it as a new page
+        // and push — never crash or incorrectly replace/pop.
+        navigationController.pushViewController(UIViewController(), animated: false)
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+
+        navigator.route(oneURL)
+
+        XCTAssertEqual(navigationController.viewControllers.count, 2)
+        XCTAssert(navigationController.topViewController is VisitableViewController)
+        assertVisited(url: oneURL, on: .main)
+    }
+
     func test_default_default_default_replaceAction_replacesOnMainStack() {
         let proposal = VisitProposal(action: .replace)
         navigator.route(proposal)
@@ -482,11 +531,30 @@ final class NavigationHierarchyControllerTests: XCTestCase {
 
     private var navigator: Navigator!
     private let alertControllerDelegate = AlertControllerDelegate()
+    // `Navigator.delegate` is weak, so the test must hold a strong reference.
+    private let customViewControllerDelegate = CustomViewControllerDelegate()
     private var hierarchyController: NavigationHierarchyController!
     private var navigationController: TestableNavigationController!
     private var modalNavigationController: TestableNavigationController!
 
     private let window = UIWindow()
+
+    // A navigator whose delegate routes custom, non-`Visitable` view controllers, wired to the
+    // same navigation controllers the test asserts against.
+    private func makeCustomViewControllerNavigator() -> Navigator {
+        let navigator = Navigator(
+            session: session,
+            modalSession: modalSession,
+            delegate: customViewControllerDelegate,
+            configuration: .init(name: "Test", startLocation: oneURL)
+        )
+        navigator.hierarchyController = NavigationHierarchyController(
+            delegate: navigator,
+            navigationController: navigationController,
+            modalNavigationController: modalNavigationController
+        )
+        return navigator
+    }
 
     // Simulate a "real" app so presenting view controllers works under test.
     private func loadNavigationControllerInWindow() {
@@ -546,5 +614,17 @@ private class AlertControllerDelegate: NavigatorDelegate {
         }
 
         return .accept
+    }
+}
+
+// MARK: - CustomViewControllerDelegate
+
+/// A non-`Visitable` custom view controller. Two instances at different URLs share a type, so
+/// the navigator must rely on the stamped routed location — not type equality — to tell them apart.
+private final class CustomViewController: UIViewController {}
+
+private class CustomViewControllerDelegate: NavigatorDelegate {
+    func handle(proposal: VisitProposal, from navigator: Navigator) -> ProposalResult {
+        .acceptCustom(CustomViewController())
     }
 }
