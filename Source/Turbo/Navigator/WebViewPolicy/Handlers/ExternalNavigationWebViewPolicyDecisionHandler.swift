@@ -30,7 +30,7 @@ public struct ExternalNavigationWebViewPolicyDecisionHandler: WebViewPolicyDecis
 
     public func handle(navigationAction: WKNavigationAction,
                        configuration: Navigator.Configuration,
-                       navigator: Navigator) -> WebViewPolicyManager.Decision {
+                       navigator: Navigating) -> WebViewPolicyManager.Decision {
         if let scheme = navigationAction.request.url?.scheme,
            invalidSchemes.contains(scheme) {
             return .cancel
