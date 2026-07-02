@@ -118,6 +118,20 @@ final class NavigationHierarchyControllerTests: XCTestCase {
         XCTAssert(navigationController.topViewController is CustomViewController)
     }
 
+    func test_unroutedViewController_onStack_visitPushesOnMainStack() {
+        // A view controller pushed onto the stack outside the navigator (e.g. mixed native
+        // navigation) has no routed location. A subsequent visit must treat it as a new page
+        // and push — never crash or incorrectly replace/pop.
+        navigationController.pushViewController(UIViewController(), animated: false)
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+
+        navigator.route(oneURL)
+
+        XCTAssertEqual(navigationController.viewControllers.count, 2)
+        XCTAssert(navigationController.topViewController is VisitableViewController)
+        assertVisited(url: oneURL, on: .main)
+    }
+
     func test_default_default_default_replaceAction_replacesOnMainStack() {
         let proposal = VisitProposal(action: .replace)
         navigator.route(proposal)
@@ -223,7 +237,7 @@ final class NavigationHierarchyControllerTests: XCTestCase {
     }
 
     func test_modal_default_default_dismissesModalThenPushesOnMainStack() {
-        navigationController.pushViewController(routedViewController(url: baseURL.appendingPathComponent("/existing")), animated: false)
+        navigationController.pushViewController(UIViewController(), animated: false)
         XCTAssertEqual(navigationController.viewControllers.count, 1)
 
         navigator.route(VisitProposal(context: .modal))
@@ -362,7 +376,7 @@ final class NavigationHierarchyControllerTests: XCTestCase {
     }
 
     func test_default_any_pop_popsOffMainStack() {
-        navigationController.pushViewController(routedViewController(url: baseURL.appendingPathComponent("/existing")), animated: false)
+        navigationController.pushViewController(UIViewController(), animated: false)
         XCTAssertEqual(navigationController.viewControllers.count, 1)
 
         navigator.route(VisitProposal())
@@ -540,14 +554,6 @@ final class NavigationHierarchyControllerTests: XCTestCase {
             modalNavigationController: modalNavigationController
         )
         return navigator
-    }
-
-    // A view controller stamped with a routed location, standing in for a screen the navigator
-    // has already routed. Identity checks require every stack member to have a location.
-    private func routedViewController(url: URL) -> UIViewController {
-        let viewController = UIViewController()
-        viewController.routedLocation = url
-        return viewController
     }
 
     // Simulate a "real" app so presenting view controllers works under test.

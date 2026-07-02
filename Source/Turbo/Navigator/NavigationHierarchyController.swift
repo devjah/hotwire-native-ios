@@ -154,8 +154,8 @@ class NavigationHierarchyController {
         guard let topViewController = navigationController.topViewController else { return false }
 
         guard let location = topViewController.routedLocation else {
-            assertionFailure("Top view controller \(topViewController) has no routed location. " +
-                             "Controllers placed on the navigator's stack must be routed through it; treating the visit as a new page.")
+            logger.warning("Top view controller \(topViewController) has no routed location; " +
+                           "treating the visit as a new page. Expected for controllers pushed onto the stack outside the navigator.")
             return false
         }
 
@@ -173,8 +173,8 @@ class NavigationHierarchyController {
 
         let previousController = navigationController.viewControllers[navigationController.viewControllers.count - 2]
         guard let location = previousController.routedLocation else {
-            assertionFailure("Previous view controller \(previousController) has no routed location. " +
-                             "Controllers placed on the navigator's stack must be routed through it; treating the visit as a new page.")
+            logger.warning("Previous view controller \(previousController) has no routed location; " +
+                           "treating the visit as a new page. Expected for controllers pushed onto the stack outside the navigator.")
             return false
         }
 
