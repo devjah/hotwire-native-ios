@@ -225,7 +225,11 @@ extension Session: VisitDelegate {
     }
 
     func visit(_ visit: Visit, didReceiveAuthenticationChallenge challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        delegate?.session(self, didReceiveAuthenticationChallenge: challenge, completionHandler: completionHandler)
+        guard let delegate else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        delegate.session(self, didReceiveAuthenticationChallenge: challenge, completionHandler: completionHandler)
     }
 
     func visitDidProposeVisitToLocation(_ location: URL) {

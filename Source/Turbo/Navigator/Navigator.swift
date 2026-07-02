@@ -230,7 +230,11 @@ extension Navigator: SessionDelegate {
     }
 
     public func session(_ session: Session, didReceiveAuthenticationChallenge challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        delegate?.didReceiveAuthenticationChallenge(challenge, completionHandler: completionHandler)
+        guard let delegate else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        delegate.didReceiveAuthenticationChallenge(challenge, completionHandler: completionHandler)
     }
 
     public func sessionDidFinishRequest(_ session: Session) {
