@@ -71,6 +71,26 @@ class VisitableViewControllerTests: XCTestCase {
         XCTAssertEqual(viewController.visitableView.subviews.count, 2)
         XCTAssertEqual(viewController.visitableView.subviews.first, viewController.visitableView.webView)
     }
+
+    @available(iOS 15.0, *)
+    func test_activating_webview_designates_its_scroll_view_as_content_scroll_view() {
+        XCTAssertNil(viewController.contentScrollView(for: .top))
+
+        viewController.activateVisitableWebView(webView)
+
+        XCTAssertEqual(viewController.contentScrollView(for: .top), webView.scrollView)
+        XCTAssertEqual(viewController.contentScrollView(for: .bottom), webView.scrollView)
+    }
+
+    @available(iOS 15.0, *)
+    func test_deactivating_webview_clears_the_content_scroll_view() {
+        viewController.activateVisitableWebView(webView)
+        XCTAssertEqual(viewController.contentScrollView(for: .top), webView.scrollView)
+
+        viewController.deactivateVisitableWebView()
+
+        XCTAssertNil(viewController.contentScrollView(for: .top))
+    }
 }
 
 final class WebViewSpy: WKWebView {
