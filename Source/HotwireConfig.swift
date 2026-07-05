@@ -74,11 +74,15 @@ public struct HotwireConfig {
     /// Ensure you return a new instance each time.
     public var makeCustomWebView: WebViewBlock = { (configuration: WKWebViewConfiguration) in
         let webView = WKWebView.debugInspectable(configuration: configuration)
-        // Transparent web view so the controller's `.systemBackground` shows
-        // through until the page paints. WKWebView is opaque-white by default,
-        // which flashes white over the (correctly dark) controller on cold
-        // boot in dark mode before the first render.
+        // Non-opaque + a system-colored backing so there's no white flash over
+        // the (correctly dark) controller on cold boot in dark mode before the
+        // first render. A non-opaque WKWebView keeps a white default
+        // `backgroundColor`, which the page then composites over — washing dark
+        // pages to a not-quite-black grey and tinting light ones — so pin the
+        // backing (and the scroll view, for overscroll) to `.systemBackground`.
         webView.isOpaque = false
+        webView.backgroundColor = .systemBackground
+        webView.scrollView.backgroundColor = .systemBackground
         return webView
     }
 
