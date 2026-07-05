@@ -15,9 +15,24 @@ extension WKWebView {
     ///
     /// - Note: The web content process is considered active if the JavaScript evaluation succeeds without error.
     /// If an error occurs during evaluation, the process is considered terminated.
+    ///
+    /// A successful evaluation is not enough on its own: when iOS reclaims the
+    /// WebContent process of a suspended app, WebKit can relaunch it lazily and
+    /// silently (no `webViewWebContentProcessDidTerminate`), leaving a fresh
+    /// `about:blank` context in which JavaScript evaluates fine — while
+    /// `webView.url` still reports the original page and the view renders
+    /// white. Detect that mismatch and report it as terminated too.
     func queryWebContentProcessState(completionHandler: @escaping (WebContentProcessState) -> Void) {
-        evaluateJavaScript("(function() { return '1'; })();") { _, error in
-            if let _ = error {
+        evaluateJavaScript("location.href") { [weak self] value, error in
+            if error != nil {
+                completionHandler(.terminated)
+                return
+            }
+
+            if let self,
+               let href = value as? String, href == "about:blank",
+               let url = self.url, url.absoluteString != "about:blank",
+               !self.isLoading {
                 completionHandler(.terminated)
                 return
             }
