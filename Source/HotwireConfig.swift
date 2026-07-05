@@ -85,7 +85,13 @@ public struct HotwireConfig {
     /// Optionally customize the web views used by each Turbo Session.
     /// Ensure you return a new instance each time.
     public var makeCustomWebView: WebViewBlock = { (configuration: WKWebViewConfiguration) in
-        WKWebView.debugInspectable(configuration: configuration)
+        let webView = WKWebView.debugInspectable(configuration: configuration)
+        // Transparent web view so the controller's `.systemBackground` shows
+        // through until the page paints. WKWebView is opaque-white by default,
+        // which flashes white over the (correctly dark) controller on cold
+        // boot in dark mode before the first render.
+        webView.isOpaque = false
+        return webView
     }
 
     /// Optionally customize the native view presented when an error occurs.
