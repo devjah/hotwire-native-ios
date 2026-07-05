@@ -52,6 +52,15 @@ crash auto-reload is disabled whenever the navigation delegate implements
 `webViewWebContentProcessDidTerminate`, so nothing else recovers them either).
 This fork drains the queue again on `didBecomeActive`.
 
+Terminations are not always reported at all: WebKit can also relaunch a
+reclaimed WebContent process silently, leaving a fresh `about:blank` JS
+context in which evaluation succeeds while `webView.url` still reports the
+original page and the view renders white. Upstream's
+`queryWebContentProcessState` treats any successful evaluation as `.active`,
+so `inspect()` never recovers those sessions. This fork additionally reports
+`.terminated` when the evaluated `location.href` is `about:blank` but
+`webView.url` isn't (and no load is in flight).
+
 ### Web-initiated history restorations propose natively
 
 Upstream, a web-side `history.back()` is handled entirely inside the web view:
