@@ -7,8 +7,9 @@ public final class SafariViewControllerRouteDecisionHandler: RouteDecisionHandle
 
     public init() {}
 
-    public func matches(location: URL,
+    public func matches(proposal: VisitProposal,
                         configuration: Navigator.Configuration) -> Bool {
+        let location = proposal.url
         /// SFSafariViewController will crash if we pass along a URL that's not valid.
         guard location.scheme == "http" || location.scheme == "https" else {
             return false
@@ -21,11 +22,11 @@ public final class SafariViewControllerRouteDecisionHandler: RouteDecisionHandle
         return configuration.startLocation.host != location.host
     }
 
-    public func handle(location: URL,
+    public func handle(proposal: VisitProposal,
                        configuration: Navigator.Configuration,
                        navigator: Navigating) -> HotwireNative.Router.Decision {
         Task { @MainActor in
-            await open(externalURL: location,
+            await open(externalURL: proposal.url,
                        viewController: navigator.activeNavigationController)
         }
 
