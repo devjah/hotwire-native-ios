@@ -5,8 +5,9 @@ public final class AppNavigationRouteDecisionHandler: RouteDecisionHandler {
 
     public init() {}
 
-    public func matches(location: URL,
+    public func matches(proposal: VisitProposal,
                         configuration: Navigator.Configuration) -> Bool {
+        let location = proposal.url
         if #available(iOS 16, *) {
             return configuration.startLocation.host() == location.host()
         }
@@ -14,10 +15,10 @@ public final class AppNavigationRouteDecisionHandler: RouteDecisionHandler {
         return configuration.startLocation.host == location.host
     }
 
-    public func handle(location: URL,
+    public func handle(proposal: VisitProposal,
                        configuration: Navigator.Configuration,
                        navigator: Navigating) -> Router.Decision {
-        logger.info("Routing \(location.absoluteString)")
+        logger.info("Routing \(proposal.url.absoluteString)")
         return .navigate
     }
 }

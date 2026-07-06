@@ -74,7 +74,7 @@ public class Navigator {
     ///
     /// - Parameter proposal: the proposal to visit
     public func route(_ proposal: VisitProposal) {
-        if routeDecision(for: proposal.url) == .cancel {
+        if routeDecision(for: proposal) == .cancel {
             return
         }
 
@@ -161,9 +161,9 @@ public class Navigator {
         }
     }
 
-    private func routeDecision(for location: URL) -> Router.Decision {
+    private func routeDecision(for proposal: VisitProposal) -> Router.Decision {
         return Hotwire.config.router.decideRoute(
-            for: location,
+            for: proposal,
             configuration: configuration,
             navigator: self
         )
