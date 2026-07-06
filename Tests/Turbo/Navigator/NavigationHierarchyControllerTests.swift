@@ -516,6 +516,75 @@ final class NavigationHierarchyControllerTests: XCTestCase {
         XCTAssertEqual(modalNavigationController.visibleViewController?.isModalInPresentation, false)
     }
 
+    // MARK: Redirects
+
+    /// A followed redirect within the default context is re-proposed by Turbo with
+    /// a `replace` action, so it replaces the pre-redirect controller in place and
+    /// must not pop the screen beneath it.
+    func test_redirect_mainToMain_replacesRedirectedControllerAndKeepsUnderlyingScreen() {
+        navigator.route(oneURL)
+        navigator.route(twoURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 2)
+
+        // /two responded with a redirect to /three, re-proposed by the main session.
+        let redirect = VisitProposal(path: "/three", action: .replace, context: .default, redirected: true)
+        navigator.session(session, didProposeVisit: redirect)
+
+        XCTAssertEqual(navigationController.viewControllers.count, 2)
+        let underlying = navigationController.viewControllers.first as? VisitableViewController
+        XCTAssertEqual(underlying?.initialVisitableURL, oneURL)
+        assertVisited(url: redirect.url, on: .main)
+    }
+
+    /// A redirect that crosses from the default context to a modal is re-proposed by
+    /// the main session (which performed the request). The stranded main controller
+    /// must be popped so it isn't left orphaned beneath the modal.
+    func test_redirect_mainToModal_popsOrphanedMainControllerAndPresentsModal() {
+        navigator.route(oneURL)
+        navigator.route(twoURL)
+        XCTAssertEqual(navigationController.viewControllers.count, 2)
+
+        let redirect = VisitProposal(path: "/modal", action: .replace, context: .modal, redirected: true)
+        navigator.session(session, didProposeVisit: redirect)
+
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+        XCTAssertEqual(modalNavigationController.viewControllers.count, 1)
+        XCTAssertIdentical(navigationController.presentedViewController, modalNavigationController)
+        assertVisited(url: redirect.url, on: .modal)
+    }
+
+    /// A followed redirect within the modal context replaces the pre-redirect
+    /// controller on the modal stack and must not pop the modal screen beneath it.
+    func test_redirect_modalToModal_replacesRedirectedControllerAndKeepsUnderlyingModalScreen() {
+        navigator.route(VisitProposal(path: "/one", context: .modal))
+        navigator.route(VisitProposal(path: "/two", context: .modal))
+        XCTAssertEqual(modalNavigationController.viewControllers.count, 2)
+
+        let redirect = VisitProposal(path: "/three", action: .replace, context: .modal, redirected: true)
+        navigator.session(modalSession, didProposeVisit: redirect)
+
+        XCTAssertEqual(modalNavigationController.viewControllers.count, 2)
+        let underlying = modalNavigationController.viewControllers.first as? VisitableViewController
+        XCTAssertEqual(underlying?.initialVisitableURL, oneURL)
+        assertVisited(url: redirect.url, on: .modal)
+    }
+
+    /// A redirect that crosses from the modal context to the default context is
+    /// re-proposed by the modal session. The modal is dismissed and the redirected
+    /// destination is routed onto the main stack.
+    func test_redirect_modalToMain_dismissesModalAndRoutesOntoMainStack() {
+        navigator.route(oneURL)
+        navigator.route(VisitProposal(path: "/modal", context: .modal))
+        XCTAssertIdentical(navigationController.presentedViewController, modalNavigationController)
+
+        let redirect = VisitProposal(path: "/three", action: .replace, context: .default, redirected: true)
+        navigator.session(modalSession, didProposeVisit: redirect)
+
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+        assertVisited(url: redirect.url, on: .main)
+        XCTAssertNil(navigationController.presentedViewController)
+    }
+
     // MARK: Private
 
     private enum Context {
@@ -588,13 +657,15 @@ extension VisitProposal {
          action: VisitAction = .advance,
          context: Navigation.Context = .default,
          presentation: Navigation.Presentation = .default,
+         redirected: Bool = false,
          additionalProperties: [String: AnyHashable] = [:]) {
         let baseURL = URL(string: "https://example.com")!
         var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
         components?.path = path.hasPrefix("/") ? path : "/\(path)"
         components?.queryItems = queryItems
         let url = components!.url!
-        let options = VisitOptions(action: action, response: nil)
+        let response = redirected ? VisitResponse(statusCode: 200, redirected: true) : nil
+        let options = VisitOptions(action: action, response: response)
         let defaultProperties: PathProperties = [
             "context": context.rawValue,
             "presentation": presentation.rawValue
