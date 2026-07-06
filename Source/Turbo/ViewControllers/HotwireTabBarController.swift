@@ -4,16 +4,35 @@ import UIKit
 ///
 /// This controller loads tabs defined by `HotwireTab` and configures each one with its own `Navigator`.
 /// The currently selected tab's navigator is exposed via the `activeNavigator` property.
+///
+/// By default, tabs are loaded lazily: only the initially selected tab performs its initial
+/// visit when `load(_:)` is called, and each remaining tab performs its initial visit the
+/// first time the user selects it. Pass `lazyLoadTabs: false` in the initializer to load
+/// every tab immediately instead.
 open class HotwireTabBarController: UITabBarController, NavigationHandler {
-    public init(navigatorDelegate: NavigatorDelegate? = nil) {
+    /// Creates a tab bar controller.
+    ///
+    /// - Parameters:
+    ///   - navigatorDelegate: An optional delegate for each tab's `Navigator`.
+    ///   - lazyLoadTabs: Controls when tab navigators perform their initial visit.
+    ///     When `true` (the default), only the initially selected tab starts when tabs
+    ///     are loaded; each remaining tab starts the first time the user selects it.
+    ///     When `false`, every tab starts immediately when `load(_:)` is called.
+    ///     This affects when each tab's content is loaded, not whether the tab's
+    ///     navigator is created.
+    public init(
+        navigatorDelegate: NavigatorDelegate? = nil,
+        lazyLoadTabs: Bool = true
+    ) {
         self.navigatorDelegate = navigatorDelegate
+        self.lazyLoadTabs = lazyLoadTabs
         super.init(nibName: nil, bundle: nil)
         delegate = self
     }
 
     @available(*, unavailable)
     public required init?(coder: NSCoder) {
-        fatalError("Use init(navigatorDelegate:) instead.")
+        fatalError("Use init(navigatorDelegate:lazyLoadTabs:) instead.")
     }
 
     /// The active navigator corresponding to the currently selected tab.
@@ -38,7 +57,7 @@ open class HotwireTabBarController: UITabBarController, NavigationHandler {
         hotwireTabs = tabs
         setupTabs()
 
-        if Hotwire.config.lazyLoadTabs {
+        if lazyLoadTabs {
             activeNavigator.start()
         } else {
             navigatorsByIdentifier.values.forEach { $0.start() }
@@ -69,6 +88,7 @@ open class HotwireTabBarController: UITabBarController, NavigationHandler {
     private var hotwireTabs: [HotwireTab] = []
     private var navigatorsByIdentifier: [HotwireTab.ID: Navigator] = [:]
     private let navigatorDelegate: NavigatorDelegate?
+    private let lazyLoadTabs: Bool
 
     /// Configures each tab for the appropriate platform API.
     private func setupTabs() {
