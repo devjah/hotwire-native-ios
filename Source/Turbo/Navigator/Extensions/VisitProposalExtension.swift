@@ -25,6 +25,10 @@ public extension VisitProposal {
         properties.modalDismissGestureEnabled
     }
 
+    var modalDimming: Bool {
+        properties.modalDimming
+    }
+
     var viewController: String {
         properties.viewController
     }

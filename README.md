@@ -40,6 +40,34 @@ instead of pushing onto the modal navigation stack:
   `HotwireNavigationController` (the default) so interactive and app-initiated
   dismissals are detected.
 
+### Fit-content sheets (`modal_style: "fit"`) and undimmed sheets (`modal_dimming: false`)
+
+`modal_style: "fit"` presents a modal as a sheet with a single custom detent
+meant to hug the web content's height:
+
+```json
+{
+  "patterns": ["^/onboarding$"],
+  "properties": {
+    "context": "modal",
+    "modal_style": "fit",
+    "modal_dimming": false
+  }
+}
+```
+
+- The sheet opens at a provisional height (40% of the maximum detent). The web
+  page reports its actual content height through a `sheet-size` bridge
+  component in the host app, which replaces the detent under the public
+  `UISheetPresentationController.Detent.Identifier.fitContent` identifier.
+- `modal_dimming: false` removes the dimming view and lets touches outside the
+  sheet pass through to the presenting screen (Apple Maps-style). It is
+  independent of `modal_style` — an undimmed `medium` sheet works too.
+- Custom detents need iOS 16; older systems fall back to a large sheet.
+  Unknown `modal_style` values already fall back to `large`, and apps without
+  this fork ignore both properties, so servers can ship them ahead of app
+  updates.
+
 ### Recover web views killed while the app was suspended
 
 iOS reclaims WKWebView WebContent processes from suspended apps; the

@@ -61,6 +61,16 @@ public extension PathProperties {
         self["pull_to_refresh_enabled"] as? Bool ?? true
     }
 
+    /// Whether a sheet-presented modal dims the screen behind it.
+    ///
+    /// Set `"modal_dimming": false` on a modal rule to remove the dimming view
+    /// and let touches outside the sheet pass through to the presenting screen
+    /// (Apple Maps-style). Combines with any sheet `modal_style`, e.g. `"fit"`
+    /// or `"medium"`.
+    var modalDimming: Bool {
+        self["modal_dimming"] as? Bool ?? true
+    }
+
     var modalDismissGestureEnabled: Bool {
         self["modal_dismiss_gesture_enabled"] as? Bool ?? true
     }
