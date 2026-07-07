@@ -1,5 +1,15 @@
 import UIKit
 
+#if !os(visionOS)
+@available(iOS 16.0, *)
+public extension UISheetPresentationController.Detent.Identifier {
+    /// The content-sized detent created by `modal_style: "fit"`. Bridge
+    /// components resize the sheet by replacing the detent under this
+    /// identifier with one resolving to the web content's reported height.
+    static let fitContent = UISheetPresentationController.Detent.Identifier("fitContent")
+}
+#endif
+
 extension UINavigationController {
     func replaceLastViewController(with viewController: UIViewController) {
         if Hotwire.config.animateReplaceActions {
@@ -29,7 +39,29 @@ extension UINavigationController {
             modalPresentationStyle = .pageSheet
         case .formSheet:
             modalPresentationStyle = .formSheet
+        case .fit:
+            // Sized to the web content once a `sheet-size` bridge component
+            // reports its height; a provisional height until then. Requires
+            // custom detents (iOS 16); older systems fall back to a large sheet.
+            modalPresentationStyle = .automatic
+            #if !os(visionOS)
+            if #available(iOS 16.0, *) {
+                if let sheet = sheetPresentationController {
+                    sheet.detents = [.custom(identifier: .fitContent) { context in
+                        context.maximumDetentValue * 0.4
+                    }]
+                }
+            }
+            #endif
         }
+
+        #if !os(visionOS)
+        if !proposal.modalDimming, #available(iOS 16.0, *) {
+            if let sheet = sheetPresentationController {
+                sheet.largestUndimmedDetentIdentifier = sheet.detents.last?.identifier
+            }
+        }
+        #endif
     }
 
     private func addFadeTransition() {

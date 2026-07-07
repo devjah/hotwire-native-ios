@@ -36,8 +36,22 @@ class PathConfigurationModalStyleTests: XCTestCase {
         XCTAssertEqual(configuration.properties(for: "/newFormSheet").modalStyle, .formSheet)
     }
 
+    func test_fitModalStyle() {
+        XCTAssertEqual(configuration.properties(for: "/newFit").modalStyle, .fit)
+    }
+
     func test_unknownModalStyle_returnsDefault() {
         XCTAssertEqual(configuration.properties(for: "/unknown").modalStyle, .large)
+    }
+
+    // MARK: -  Modal dimming
+
+    func test_modalDimmingDisabled() {
+        XCTAssertEqual(configuration.properties(for: "/newFit").modalDimming, false)
+    }
+
+    func test_modalDimmingMissing_returnsTrue() {
+        XCTAssertEqual(configuration.properties(for: "/new").modalDimming, true)
     }
 
     // MARK: -  Modal presentation

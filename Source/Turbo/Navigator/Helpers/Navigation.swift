@@ -20,6 +20,7 @@ public enum Navigation {
         case full
         case pageSheet = "page_sheet"
         case formSheet = "form_sheet"
+        case fit
     }
 
     public enum ModalPresentation: String {

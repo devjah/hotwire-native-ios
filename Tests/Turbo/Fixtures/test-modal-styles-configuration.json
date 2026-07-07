@@ -65,6 +65,16 @@
         "context":"modal",
         "modal_style":"form_sheet"
       }
+    },
+    {
+      "patterns":[
+        "/newFit$"
+      ],
+      "properties":{
+        "context":"modal",
+        "modal_style":"fit",
+        "modal_dimming": false
+      }
     }
   ]
 }
