@@ -5,24 +5,23 @@ import UIKit
 /// This controller loads tabs defined by `HotwireTab` and configures each one with its own `Navigator`.
 /// The currently selected tab's navigator is exposed via the `activeNavigator` property.
 ///
-/// By default, tabs are loaded lazily: only the initially selected tab performs its initial
-/// visit when `load(_:)` is called, and each remaining tab performs its initial visit the
-/// first time the user selects it. Pass `lazyLoadTabs: false` in the initializer to load
-/// every tab immediately instead.
+/// By default, every tab performs its initial visit when `load(_:)` is called. Pass
+/// `lazyLoadTabs: true` in the initializer to defer each tab's initial visit until the
+/// first time the user selects it; the initially selected tab still loads right away.
 open class HotwireTabBarController: UITabBarController, NavigationHandler {
     /// Creates a tab bar controller.
     ///
     /// - Parameters:
     ///   - navigatorDelegate: An optional delegate for each tab's `Navigator`.
     ///   - lazyLoadTabs: Controls when tab navigators perform their initial visit.
-    ///     When `true` (the default), only the initially selected tab starts when tabs
+    ///     When `false` (the default), every tab starts immediately when `load(_:)`
+    ///     is called. When `true`, only the initially selected tab starts when tabs
     ///     are loaded; each remaining tab starts the first time the user selects it.
-    ///     When `false`, every tab starts immediately when `load(_:)` is called.
     ///     This affects when each tab's content is loaded, not whether the tab's
     ///     navigator is created.
     public init(
         navigatorDelegate: NavigatorDelegate? = nil,
-        lazyLoadTabs: Bool = true
+        lazyLoadTabs: Bool = false
     ) {
         self.navigatorDelegate = navigatorDelegate
         self.lazyLoadTabs = lazyLoadTabs
