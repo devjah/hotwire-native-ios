@@ -7,7 +7,10 @@ final class SceneController: UIResponder {
     var window: UIWindow?
 
     private let rootURL = Demo.current
-    private lazy var tabBarController = HotwireTabBarController(navigatorDelegate: self)
+    private lazy var tabBarController = HotwireTabBarController(
+        navigatorDelegate: self,
+        lazyLoadTabs: true
+    )
 
     // MARK: - Authentication
 
