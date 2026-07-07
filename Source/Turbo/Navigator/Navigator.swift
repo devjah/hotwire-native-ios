@@ -175,10 +175,20 @@ public class Navigator {
 extension Navigator: SessionDelegate {
     public func session(_ session: Session, didProposeVisit proposal: VisitProposal) {
         if proposal.isRedirect {
-            // Animate the pop only if we're in the active modal session
-            // and the visit is proposed on the default context.
-            let animatePop = session === modalSession && proposal.context == .default
-            pop(animated: animatePop)
+            // Turbo re-proposes a followed redirect with a `replace` action (it also
+            // performed `history.replaceState` on the web side), so routing the
+            // proposal already rewrites the pre-redirect controller in place. We only
+            // need to pop that controller when the redirect moves across the
+            // default <-> modal boundary, otherwise the
+            // controller is orphaned on the stack it was pushed onto.
+            let sessionIsModal = session === modalSession
+            let proposalIsModal = proposal.context == .modal
+            if sessionIsModal != proposalIsModal {
+                // Animate the pop only when receding from the active modal session
+                // to the default context, matching the back-style transition.
+                let animatePop = sessionIsModal && proposal.context == .default
+                pop(animated: animatePop)
+            }
         }
         route(proposal)
     }
