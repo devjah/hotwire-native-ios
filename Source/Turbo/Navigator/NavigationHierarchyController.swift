@@ -150,8 +150,8 @@ class NavigationHierarchyController {
                     // `history.back()` from a stacked modal: dismiss everything above it.
                     dismissStackedModals(above: revealTarget, animated: proposal.animated)
                 } else if proposal.modalPresentation == .stack,
-                          !visitingSamePage(on: topmostModalNavigationController, with: controller, via: proposal),
-                          !visitingPreviousPage(on: topmostModalNavigationController, with: controller, via: proposal) {
+                          !visitingSamePage(on: topmostModalNavigationController, via: proposal),
+                          !visitingPreviousPage(on: topmostModalNavigationController, via: proposal) {
                     // The previous-page guard keeps a back-navigation to a stack-tagged
                     // page (e.g. from a screen pushed inside the sheet back to the
                     // sheet's root) popping within the sheet instead of stacking a
