@@ -41,14 +41,16 @@ extension UINavigationController {
             modalPresentationStyle = .formSheet
         case .fit:
             // Sized to the web content once a `sheet-size` bridge component
-            // reports its height; a provisional height until then. Requires
-            // custom detents (iOS 16); older systems fall back to a large sheet.
+            // reports its height; a provisional height until then. Kept below
+            // typical content height so the sheet grows into place — growing
+            // reads as loading, shrinking reads as a glitch. Requires custom
+            // detents (iOS 16); older systems fall back to a large sheet.
             modalPresentationStyle = .automatic
             #if !os(visionOS)
             if #available(iOS 16.0, *) {
                 if let sheet = sheetPresentationController {
                     sheet.detents = [.custom(identifier: .fitContent) { context in
-                        context.maximumDetentValue * 0.4
+                        context.maximumDetentValue * 0.2
                     }]
                 }
             }
