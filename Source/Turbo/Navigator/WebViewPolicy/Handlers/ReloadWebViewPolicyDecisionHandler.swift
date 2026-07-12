@@ -17,7 +17,8 @@ public struct ReloadWebViewPolicyDecisionHandler: WebViewPolicyDecisionHandler {
 
     public func handle(navigationAction: WKNavigationAction,
                        configuration: Navigator.Configuration,
-                       navigator: Navigator) -> WebViewPolicyManager.Decision {
+                       navigator: Navigating) -> WebViewPolicyManager.Decision {
+        logger.info("ReloadWebViewPolicyDecisionHandler: Reloading at \(navigationAction.request.url?.absoluteString ?? "<web view has no url>")")
         navigator.reload()
 
         return .cancel

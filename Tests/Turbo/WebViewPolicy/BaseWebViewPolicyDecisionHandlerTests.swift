@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 class BaseWebViewPolicyDecisionHandlerTests: XCTestCase {
-    var webNavigationSimulator: WebViewNavigationSimulator!
+    var webNavigationSimulator: WebViewPolicyNavigationSimulator!
     var navigatorSpy: NavigationSpy!
     let navigatorConfiguration = Navigator.Configuration(
         name: "test",
@@ -12,11 +12,12 @@ class BaseWebViewPolicyDecisionHandlerTests: XCTestCase {
     )
 
     override func setUp() async throws {
-        navigatorSpy = NavigationSpy(configuration: navigatorConfiguration)
-        webNavigationSimulator = WebViewNavigationSimulator()
+        navigatorSpy = NavigationSpy()
+        webNavigationSimulator = WebViewPolicyNavigationSimulator()
     }
 
     override func tearDown() async throws {
+        webNavigationSimulator.stopLoading()
         webNavigationSimulator = nil
     }
 }

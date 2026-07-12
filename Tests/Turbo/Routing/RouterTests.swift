@@ -6,19 +6,22 @@ final class RouterTests: XCTestCase {
         name: "test",
         startLocation: URL(string: "https://my.app.com")!
     )
-    let url = URL(string: "https://my.app.com/page")!
+    let proposal = VisitProposal(
+        url: URL(string: "https://my.app.com/page")!,
+        options: VisitOptions()
+    )
     var router: Router!
-    var navigator: Navigator!
+    var navigator: NavigationSpy!
 
     override func setUp() {
-        navigator = Navigator(configuration: navigatorConfiguration)
+        navigator = NavigationSpy()
     }
 
     func test_no_handlers_stops_navigation() {
         router = Router(decisionHandlers: [])
 
         let result = router.decideRoute(
-            for: url,
+            for: proposal,
             configuration: navigatorConfiguration,
             navigator: navigator
         )
@@ -38,7 +41,7 @@ final class RouterTests: XCTestCase {
         )
 
         let result = router.decideRoute(
-            for: url,
+            for: proposal,
             configuration: navigatorConfiguration,
             navigator: navigator
         )
@@ -64,7 +67,7 @@ final class RouterTests: XCTestCase {
         )
 
         let result = router.decideRoute(
-            for: url,
+            for: proposal,
             configuration: navigatorConfiguration,
             navigator: navigator
         )
@@ -84,12 +87,12 @@ final class NoMatchRouteDecisionHandlerSpy: RouteDecisionHandler {
     var matchesWasCalled = false
     var handleWasCalled = false
 
-    func matches(location: URL, configuration: HotwireNative.Navigator.Configuration) -> Bool {
+    func matches(proposal: VisitProposal, configuration: HotwireNative.Navigator.Configuration) -> Bool {
         matchesWasCalled = true
         return false
     }
-    
-    func handle(location: URL, configuration: HotwireNative.Navigator.Configuration, navigator: HotwireNative.Navigator) -> HotwireNative.Router.Decision {
+
+    func handle(proposal: VisitProposal, configuration: HotwireNative.Navigator.Configuration, navigator: HotwireNative.Navigating) -> HotwireNative.Router.Decision {
         handleWasCalled = true
         return .cancel
     }
@@ -100,12 +103,12 @@ final class MatchRouteDecisionHandlerSpy: RouteDecisionHandler {
     var matchesWasCalled = false
     var handleWasCalled = false
 
-    func matches(location: URL, configuration: HotwireNative.Navigator.Configuration) -> Bool {
+    func matches(proposal: VisitProposal, configuration: HotwireNative.Navigator.Configuration) -> Bool {
         matchesWasCalled = true
         return true
     }
 
-    func handle(location: URL, configuration: HotwireNative.Navigator.Configuration, navigator: HotwireNative.Navigator) -> HotwireNative.Router.Decision {
+    func handle(proposal: VisitProposal, configuration: HotwireNative.Navigator.Configuration, navigator: HotwireNative.Navigating) -> HotwireNative.Router.Decision {
         handleWasCalled = true
         return .navigate
     }

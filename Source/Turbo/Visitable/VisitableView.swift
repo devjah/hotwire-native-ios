@@ -24,7 +24,10 @@ open class VisitableView: UIView {
     open func activateWebView(_ webView: WKWebView, forVisitable visitable: Visitable) {
         self.webView = webView
         self.visitable = visitable
-        addSubview(webView)
+        // iOS 14 fallback: with no explicit contentScrollView, UIKit's heuristic requires
+        // the scrollable view to be the first subview for large-title / tab-bar-minimize
+        // to work. On iOS 15+ this is made robust by setContentScrollView in Visitable.
+        insertSubview(webView, at: 0)
         addFillConstraints(for: webView)
         installRefreshControl()
         showOrHideWebView()

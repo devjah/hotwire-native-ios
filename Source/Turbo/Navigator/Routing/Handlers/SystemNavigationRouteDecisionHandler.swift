@@ -7,8 +7,9 @@ public final class SystemNavigationRouteDecisionHandler: RouteDecisionHandler {
 
     public init() {}
 
-    public func matches(location: URL,
+    public func matches(proposal: VisitProposal,
                         configuration: Navigator.Configuration) -> Bool {
+        let location = proposal.url
         if #available(iOS 16, *) {
             return configuration.startLocation.host() != location.host()
         }
@@ -16,10 +17,10 @@ public final class SystemNavigationRouteDecisionHandler: RouteDecisionHandler {
         return configuration.startLocation.host != location.host
     }
 
-    public func handle(location: URL,
+    public func handle(proposal: VisitProposal,
                        configuration: Navigator.Configuration,
-                       navigator: Navigator) -> Router.Decision {
-        UIApplication.shared.open(location)
+                       navigator: Navigating) -> Router.Decision {
+        UIApplication.shared.open(proposal.url)
 
         return .cancel
     }

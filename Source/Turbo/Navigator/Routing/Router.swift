@@ -9,19 +9,19 @@ public final class Router {
         self.decisionHandlers = decisionHandlers
     }
 
-    func decideRoute(for location: URL,
+    func decideRoute(for proposal: VisitProposal,
                      configuration: Navigator.Configuration,
-                     navigator: Navigator) -> Router.Decision {
+                     navigator: Navigating) -> Router.Decision {
         for handler in decisionHandlers {
-            if handler.matches(location: location, configuration: configuration) {
-                logger.debug("[Router] handler match found handler: \(handler.name) location: \(location)")
-                return handler.handle(location: location,
+            if handler.matches(proposal: proposal, configuration: configuration) {
+                logger.debug("[Router] handler match found handler: \(handler.name) proposal: \(proposal)")
+                return handler.handle(proposal: proposal,
                                configuration: configuration,
                                navigator: navigator)
             }
         }
 
-        logger.warning("[Router] no handler for location: \(location)")
+        logger.warning("[Router] no handler for proposal: \(proposal)")
         return .cancel
     }
 }
