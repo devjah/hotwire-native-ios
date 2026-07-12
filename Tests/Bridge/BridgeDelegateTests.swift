@@ -139,8 +139,48 @@ class BridgeDelegateTests: XCTestCase {
         
         delegate.onViewDidDisappear()
         XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
-        
+
         component = delegate.component()
+        XCTAssertNil(component)
+    }
+
+    // A message arriving while the destination is inactive (backgrounded tab,
+    // covered screen) is queued and replayed when the destination reactivates,
+    // so native state catches up with DOM changes it missed.
+    func testBridgeReplaysQueuedInactiveMessagesOnViewWillAppear() {
+        let message = Message(id: "1",
+                              component: "two",
+                              event: "connect",
+                              metadata: .init(url: "https://37signals.com"),
+                              jsonData: json)
+
+        delegate.onViewDidDisappear()
+        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
+
+        delegate.onViewWillAppear()
+
+        let component: BridgeComponentSpy? = delegate.component()
+        XCTAssertNotNil(component)
+        XCTAssertTrue(component!.onReceiveMessageWasCalled)
+        XCTAssertEqual(component?.onReceiveMessageArg, message)
+    }
+
+    // If the page navigated while the destination was offscreen, the queued
+    // messages belong to the old page and must not replay.
+    func testBridgeDropsQueuedMessagesForAStaleLocation() {
+        let message = Message(id: "1",
+                              component: "two",
+                              event: "connect",
+                              metadata: .init(url: "https://37signals.com"),
+                              jsonData: json)
+
+        delegate.onViewDidDisappear()
+        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
+
+        bridge.webView = RedirectedWebView(location: "https://37signals.com/elsewhere")
+        delegate.onViewWillAppear()
+
+        let component: BridgeComponentSpy? = delegate.component()
         XCTAssertNil(component)
     }
 
