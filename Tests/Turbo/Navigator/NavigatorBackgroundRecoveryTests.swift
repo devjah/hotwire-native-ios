@@ -59,6 +59,45 @@ final class NavigatorBackgroundRecoveryTests: XCTestCase {
         XCTAssertEqual(session.reloadCallCount, 0)
     }
 
+    /// A reclaimed WebContent process can also be relaunched silently with the
+    /// web view's `url` reset to nil. JS probes can't detect that shape (the
+    /// fresh context evaluates fine and there is no original URL left to
+    /// compare against), so `inspect()` must recreate the session outright.
+    func test_appDidBecomeActive_recreatesVisitedSessionWhoseWebViewLostItsURL() {
+        let session = VisitedSessionDouble(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: session)
+
+        navigator.appDidBecomeActive()
+
+        XCTAssertFalse(navigator.session === session,
+                       "a visited session whose web view has url == nil and no load in flight should be recreated")
+    }
+
+    /// The nil-URL check must not fire while a load is in flight — the web view
+    /// legitimately has no URL until the navigation commits.
+    func test_appDidBecomeActive_leavesLoadingSessionsAlone() {
+        let webView = LoadingStubWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        let session = VisitedSessionDouble(webView: webView)
+        let navigator = makeNavigator(session: session)
+
+        navigator.appDidBecomeActive()
+
+        XCTAssertTrue(navigator.session === session,
+                      "a session mid-load must not be recreated")
+    }
+
+    /// The nil-URL check must not fire for a session that never visited a page
+    /// — a fresh web view legitimately has no URL.
+    func test_appDidBecomeActive_leavesNeverVisitedSessionsAlone() {
+        let session = Session(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: session)
+
+        navigator.appDidBecomeActive()
+
+        XCTAssertTrue(navigator.session === session,
+                      "a session with no topmost visitable must not be recreated")
+    }
+
     private func makeNavigator(session: Session) -> Navigator {
         Navigator(
             session: session,
@@ -66,6 +105,21 @@ final class NavigatorBackgroundRecoveryTests: XCTestCase {
             configuration: .init(name: "", startLocation: URL(string: "https://example.com")!)
         )
     }
+}
+
+/// Session double that reports a completed visit natively (`topmostVisitable`
+/// and `activeVisitable` set) while its web view holds whatever state the test
+/// gives it — used to simulate the silent-relaunch states `inspect()` handles.
+private final class VisitedSessionDouble: Session {
+    let visitable = TestVisitable(url: URL(string: "https://example.com/page")!)
+
+    override var topmostVisitable: Visitable? { visitable }
+    override var activeVisitable: Visitable? { visitable }
+}
+
+/// Web view stub that pretends a load is in flight.
+private final class LoadingStubWebView: WKWebView {
+    override var isLoading: Bool { true }
 }
 
 /// Session double that records `reload()` calls. `super.reload()` is a safe
