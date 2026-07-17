@@ -89,6 +89,12 @@ so `inspect()` never recovers those sessions. This fork additionally reports
 `.terminated` when the evaluated `location.href` is `about:blank` but
 `webView.url` isn't (and no load is in flight).
 
+The silent relaunch can also reset `webView.url` to nil, a shape the JS probe
+can't detect at all: evaluation succeeds in the fresh context and there is no
+original URL left to compare against. `inspect()` therefore recreates any
+session that has visited a page but whose web view reports no URL and no load
+in flight, before consulting the probe.
+
 ### Web-initiated history restorations propose natively
 
 Upstream, a web-side `history.back()` is handled entirely inside the web view:

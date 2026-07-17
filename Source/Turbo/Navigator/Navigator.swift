@@ -374,6 +374,8 @@ extension Navigator {
     /// This method checks if the web view associated with the session has terminated in the background.
     /// If so, it removes the session from the list of background terminated web view processes, reloads the session, and returns.
     /// If the session's topmost visitable URL is not available, the method returns without further action.
+    /// If the web view has visited a page but reports no URL (and no load in flight), its process was
+    /// silently relaunched into an empty context — it recreates the web view for the session.
     /// If the web view's content process state is non-recoverable/terminated, it recreates the web view for the session.
     private func inspect(_ session: Session) {
         if let index = backgroundTerminatedWebViewSessions.firstIndex(where: { $0 === session }) {
@@ -385,6 +387,17 @@ extension Navigator {
 
         guard let _ = session.topmostVisitable?.initialVisitableURL else {
             logger.debug("Skipping inspection: no topmostVisitable found")
+            return
+        }
+
+        // A session that has visited a page but whose web view reports no URL and
+        // no load in flight was silently relaunched into an empty context after
+        // its process was reclaimed. `queryWebContentProcessState` can't catch
+        // this shape — JS evaluates fine in the fresh context and there is no
+        // original `webView.url` left to compare against — so recreate directly.
+        if session.webView.url == nil, !session.webView.isLoading {
+            logger.debug("Recreating web view: silently relaunched with no URL")
+            recreateWebView(for: session)
             return
         }
 
