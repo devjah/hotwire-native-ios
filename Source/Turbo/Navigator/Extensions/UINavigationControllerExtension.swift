@@ -35,6 +35,10 @@ extension UINavigationController {
             modalPresentationStyle = .automatic
         case .full:
             modalPresentationStyle = .fullScreen
+        case .overFullScreen:
+            // Same size as .fullScreen, but the presenter's view stays in the
+            // window hierarchy behind it — the page underneath keeps running.
+            modalPresentationStyle = .overFullScreen
         case .pageSheet:
             modalPresentationStyle = .pageSheet
         case .formSheet:
