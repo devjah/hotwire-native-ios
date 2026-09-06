@@ -189,13 +189,35 @@ public class Navigator {
 
 extension Navigator: SessionDelegate {
     public func session(_ session: Session, didProposeVisit proposal: VisitProposal) {
-        if proposal.isRedirect {
+        if proposal.isRedirect, !redirectWouldDismissItsOwnModal(proposal, from: session) {
             // Animate the pop only if we're in the active modal session
             // and the visit is proposed on the default context.
             let animatePop = session === modalSession && proposal.context == .default
             pop(animated: animatePop)
         }
         route(proposal)
+    }
+
+    /// A redirect that lands back in the modal context while the visible modal holds
+    /// nothing but its root screen — a form modal whose GET is bounced to a paywall,
+    /// say.
+    ///
+    /// The pop above exists to drop the page that redirected off the back stack, but
+    /// here there is no screen to pop: `pop()` dismisses the whole sheet, and `route`
+    /// then presents that same navigation controller again while UIKit is still
+    /// tearing it down. The destination flashes up and disappears, and the next
+    /// attempt races the same teardown, so it only sometimes arrives.
+    ///
+    /// Skipping the pop lets `route` replace the modal's root screen in place, which
+    /// is the outcome popping-then-presenting was reaching for. Stacked
+    /// presentations keep the old behaviour: they present a *new* sheet rather than
+    /// re-presenting this one, so dismissing first is what stops them piling up.
+    private func redirectWouldDismissItsOwnModal(_ proposal: VisitProposal, from session: Session) -> Bool {
+        session === modalSession
+            && proposal.context == .modal
+            && proposal.modalPresentation != .stack
+            && rootViewController.presentedViewController != nil
+            && topmostModalNavigationController.viewControllers.count == 1
     }
 
     public func session(_ session: Session, didProposeVisitToCrossOriginRedirect location: URL) {
