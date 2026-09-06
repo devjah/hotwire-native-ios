@@ -31,9 +31,17 @@ class TestableNavigationController: HotwireNavigationController {
         super.present(viewControllerToPresent, animated: false, completion: completion)
     }
 
+    /// How many times this controller has dismissed something. Presentation is faked
+    /// synchronously here, so a modal that is dismissed and immediately presented
+    /// again ends up indistinguishable from one whose content was swapped in place —
+    /// the difference only shows in real UIKit, which refuses a present that overlaps
+    /// a dismissal. Counting the dismissals lets a test tell the two apart.
+    private(set) var dismissCount = 0
+
     override func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
         let dismissedViewController = _presentedViewController
         _presentedViewController = nil
+        if dismissedViewController != nil { dismissCount += 1 }
         super.dismiss(animated: false, completion: completion)
 
         // Simulate UIKit's dismissal lifecycle, which doesn't run synchronously under

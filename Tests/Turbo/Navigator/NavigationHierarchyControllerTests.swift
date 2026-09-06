@@ -326,6 +326,59 @@ final class NavigationHierarchyControllerTests: XCTestCase {
         assertVisited(url: proposal.url, on: .modal)
     }
 
+    // MARK: Redirects
+
+    /// A server redirect on the modal's root screen — a form modal bounced to a
+    /// paywall, say. Popping would dismiss the sheet (there is no screen under the
+    /// root to pop to) and the route would then re-present it mid-teardown, so the
+    /// destination flashed up and vanished.
+    func test_modal_modal_redirect_onModalRoot_replacesInPlaceAndKeepsModal() {
+        navigator.route(VisitProposal(path: "/one", context: .modal))
+        XCTAssertEqual(modalNavigationController.viewControllers.count, 1)
+        XCTAssertIdentical(navigationController.presentedViewController, modalNavigationController)
+
+        let redirect = VisitProposal(path: "/two", action: .replace, context: .modal, redirected: true)
+        navigator.session(navigator.modalSession, didProposeVisit: redirect)
+
+        // The sheet must never come down: dismissing it here is what let UIKit drop
+        // the re-presentation that followed, so the destination flashed and vanished.
+        XCTAssertEqual(navigationController.dismissCount, 0)
+        XCTAssertIdentical(navigationController.presentedViewController, modalNavigationController)
+        XCTAssertEqual(modalNavigationController.viewControllers.count, 1)
+        assertVisited(url: twoURL, on: .modal)
+    }
+
+    /// Deeper in the modal there *is* a screen to drop, so the pop still runs: it
+    /// takes the redirecting page off the stack and the destination then replaces
+    /// what it uncovered, leaving the sheet on one screen.
+    func test_modal_modal_redirect_belowModalRoot_popsTheRedirectingPage() {
+        navigator.route(VisitProposal(path: "/one", context: .modal))
+        navigator.route(VisitProposal(path: "/two", context: .modal))
+        XCTAssertEqual(modalNavigationController.viewControllers.count, 2)
+
+        let redirect = VisitProposal(path: "/three", action: .replace, context: .modal, redirected: true)
+        navigator.session(navigator.modalSession, didProposeVisit: redirect)
+
+        XCTAssertIdentical(navigationController.presentedViewController, modalNavigationController)
+        XCTAssertEqual(modalNavigationController.viewControllers.count, 1)
+        assertVisited(url: baseURL.appendingPathComponent("/three"), on: .modal)
+    }
+
+    /// A redirect out of the modal and onto the main stack still tears the modal
+    /// down — the destination isn't going back into the sheet.
+    func test_modal_default_redirect_onModalRoot_dismissesModal() {
+        navigationController.pushViewController(UIViewController(), animated: false)
+        navigator.route(VisitProposal(path: "/one", context: .modal))
+        XCTAssertIdentical(navigationController.presentedViewController, modalNavigationController)
+
+        let redirect = VisitProposal(path: "/two", action: .replace, redirected: true)
+        navigator.session(navigator.modalSession, didProposeVisit: redirect)
+
+        XCTAssertEqual(navigationController.dismissCount, 1)
+        XCTAssertNil(navigationController.presentedViewController)
+        assertVisited(url: twoURL, on: .main)
+    }
+
     func test_default_any_pop_popsOffMainStack() {
         navigationController.pushViewController(UIViewController(), animated: false)
         XCTAssertEqual(navigationController.viewControllers.count, 1)
@@ -522,13 +575,15 @@ extension VisitProposal {
          action: VisitAction = .advance,
          context: Navigation.Context = .default,
          presentation: Navigation.Presentation = .default,
+         redirected: Bool = false,
          additionalProperties: [String: AnyHashable] = [:]) {
         let baseURL = URL(string: "https://example.com")!
         var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
         components?.path = path.hasPrefix("/") ? path : "/\(path)"
         components?.queryItems = queryItems
         let url = components!.url!
-        let options = VisitOptions(action: action, response: nil)
+        let response = redirected ? VisitResponse(statusCode: 200, redirected: true) : nil
+        let options = VisitOptions(action: action, response: response)
         let defaultProperties: PathProperties = [
             "context": context.rawValue,
             "presentation": presentation.rawValue
