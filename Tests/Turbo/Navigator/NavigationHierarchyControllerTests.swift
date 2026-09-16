@@ -585,7 +585,64 @@ final class NavigationHierarchyControllerTests: XCTestCase {
         XCTAssertNil(navigationController.presentedViewController)
     }
 
+    func test_redirect_modalToMain_singleControllerModal_routesAfterModalDismissalCompletes() {
+        assertModalToMainRedirectWaitsForDismissal(
+            modalProposals: [VisitProposal(path: "/modal-one", context: .modal)]
+        )
+    }
+
+    func test_redirect_modalToMain_multipleControllerModal_routesAfterModalDismissalCompletes() {
+        assertModalToMainRedirectWaitsForDismissal(
+            modalProposals: [
+                VisitProposal(path: "/modal-one", context: .modal),
+                VisitProposal(path: "/modal-two", context: .modal)
+            ]
+        )
+    }
+
     // MARK: Private
+
+    private func assertModalToMainRedirectWaitsForDismissal(modalProposals: [VisitProposal]) {
+        let delayedNavigationController = DelayedDismissalNavigationController()
+        let testModalNavigationController = TestableNavigationController()
+        let redirectDelegate = RedirectProposalRecordingDelegate()
+        let testSession = Session(webView: Hotwire.config.makeWebView())
+        let testModalSession = Session(webView: Hotwire.config.makeWebView())
+        let testNavigator = Navigator(
+            session: testSession,
+            modalSession: testModalSession,
+            delegate: redirectDelegate,
+            configuration: .init(name: "Test", startLocation: oneURL)
+        )
+        testNavigator.hierarchyController = NavigationHierarchyController(
+            delegate: testNavigator,
+            navigationController: delayedNavigationController,
+            modalNavigationController: testModalNavigationController
+        )
+        loadNavigationControllerInWindow(delayedNavigationController)
+
+        testNavigator.route(oneURL)
+        for proposal in modalProposals {
+            testNavigator.route(proposal)
+        }
+
+        let redirect = VisitProposal(path: "/three", action: .replace, context: .default, redirected: true)
+        testNavigator.session(testModalSession, didProposeVisit: redirect)
+
+        XCTAssertTrue(redirectDelegate.redirectProposals.isEmpty)
+        XCTAssertIdentical(delayedNavigationController.presentedViewController, testModalNavigationController)
+
+        delayedNavigationController.completeDismissal()
+
+        XCTAssertEqual(redirectDelegate.redirectProposals.count, 1)
+        let receivedProposal = redirectDelegate.redirectProposals[0]
+        XCTAssertEqual(receivedProposal.url, redirect.url)
+        XCTAssertEqual(receivedProposal.options.action, redirect.options.action)
+        XCTAssertEqual(receivedProposal.context, redirect.context)
+        XCTAssertEqual(receivedProposal.isRedirect, redirect.isRedirect)
+        XCTAssertNil(delayedNavigationController.presentedViewController)
+        XCTAssertEqual(testNavigator.session.activeVisitable?.initialVisitableURL, redirect.url)
+    }
 
     private enum Context {
         case main, modal
@@ -627,6 +684,10 @@ final class NavigationHierarchyControllerTests: XCTestCase {
 
     // Simulate a "real" app so presenting view controllers works under test.
     private func loadNavigationControllerInWindow() {
+        loadNavigationControllerInWindow(navigationController)
+    }
+
+    private func loadNavigationControllerInWindow(_ navigationController: UINavigationController) {
         window.rootViewController = navigationController
         window.makeKeyAndVisible()
         navigationController.loadViewIfNeeded()
@@ -699,5 +760,35 @@ private final class CustomViewController: UIViewController {}
 private class CustomViewControllerDelegate: NavigatorDelegate {
     func handle(proposal: VisitProposal, from navigator: Navigator) -> ProposalResult {
         .acceptCustom(CustomViewController())
+    }
+}
+
+// MARK: - RedirectProposalRecordingDelegate
+
+private final class RedirectProposalRecordingDelegate: NavigatorDelegate {
+    private(set) var redirectProposals = [VisitProposal]()
+
+    func handle(proposal: VisitProposal, from navigator: Navigator) -> ProposalResult {
+        if proposal.isRedirect {
+            redirectProposals.append(proposal)
+        }
+
+        return .accept
+    }
+}
+
+// MARK: - DelayedDismissalNavigationController
+
+private final class DelayedDismissalNavigationController: TestableNavigationController {
+    private var dismissalCompletion: (() -> Void)?
+
+    override func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
+        dismissalCompletion = completion
+    }
+
+    func completeDismissal() {
+        presentedViewController = nil
+        dismissalCompletion?()
+        dismissalCompletion = nil
     }
 }

@@ -98,6 +98,15 @@ class NavigationHierarchyController {
         }
     }
 
+    func dismissModal(animated: Bool, completion: (() -> Void)? = nil) {
+        guard navigationController.presentedViewController != nil else {
+            completion?()
+            return
+        }
+
+        navigationController.dismiss(animated: animated, completion: completion)
+    }
+
     func clearAll(animated: Bool) {
         dismissEntireModalContext(animated: animated)
         navigationController.popToRootViewController(animated: animated)
