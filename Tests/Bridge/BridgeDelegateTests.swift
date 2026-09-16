@@ -144,10 +144,13 @@ class BridgeDelegateTests: XCTestCase {
         XCTAssertNil(component)
     }
 
-    // A message arriving while the destination is inactive (backgrounded tab,
-    // covered screen) is queued and replayed when the destination reactivates,
-    // so native state catches up with DOM changes it missed.
-    func testBridgeReplaysQueuedInactiveMessagesOnViewWillAppear() {
+    // The case the fork used to queue for: a destination offscreen (backgrounded
+    // tab, screen under a modal) whose web view is still live and attached. Server
+    // broadcasts keep mutating that page's DOM, and dropping the resulting bridge
+    // messages strands native state — a nav-bar button whose web element
+    // disconnected offscreen would linger forever. Such a destination is active,
+    // so the message is delivered when it arrives and there is nothing to replay.
+    func testBridgeDeliversMessagesToAnOffscreenButAttachedDestination() {
         let message = Message(id: "1",
                               component: "two",
                               event: "connect",
@@ -155,9 +158,7 @@ class BridgeDelegateTests: XCTestCase {
                               jsonData: json)
 
         delegate.onViewDidDisappear()
-        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
-
-        delegate.onViewWillAppear()
+        XCTAssertTrue(delegate.bridgeDidReceiveMessage(message))
 
         let component: BridgeComponentSpy? = delegate.component()
         XCTAssertNotNil(component)
@@ -165,20 +166,17 @@ class BridgeDelegateTests: XCTestCase {
         XCTAssertEqual(component?.onReceiveMessageArg, message)
     }
 
-    // If the page navigated while the destination was offscreen, the queued
-    // messages belong to the old page and must not replay.
-    func testBridgeDropsQueuedMessagesForAStaleLocation() {
+    // A message for a page the destination has navigated away from is still
+    // dropped — the location guard is what survives from the queue's stale check.
+    func testBridgeIgnoresMessagesForAStaleLocation() {
         let message = Message(id: "1",
                               component: "two",
                               event: "connect",
                               metadata: .init(url: "https://37signals.com"),
                               jsonData: json)
 
-        delegate.onViewDidDisappear()
-        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
-
         bridge.webView = RedirectedWebView(location: "https://37signals.com/elsewhere")
-        delegate.onViewWillAppear()
+        XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
 
         let component: BridgeComponentSpy? = delegate.component()
         XCTAssertNil(component)
