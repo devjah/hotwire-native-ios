@@ -125,7 +125,7 @@ class BridgeDelegateTests: XCTestCase {
         XCTAssertNotNil(component?.delegate)
     }
 
-    func testBridgeIgnoresMessageForInactiveDestination() {
+    func testBridgeIgnoresMessageAfterWebViewBecomesDeactivated() {
         let message = Message(id: "1",
                               component: "one",
                               event: "connect",
@@ -137,7 +137,7 @@ class BridgeDelegateTests: XCTestCase {
         var component: OneBridgeComponent? = delegate.component()
         XCTAssertNotNil(component)
         
-        delegate.onViewDidDisappear()
+        delegate.webViewDidBecomeDeactivated()
         XCTAssertFalse(delegate.bridgeDidReceiveMessage(message))
 
         component = delegate.component()
