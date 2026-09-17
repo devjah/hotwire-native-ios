@@ -1,4 +1,5 @@
 @testable import HotwireNative
+import UIKit
 import WebKit
 import XCTest
 
@@ -13,6 +14,9 @@ import XCTest
 /// which can fire *before* the termination is reported, orphaning the session
 /// and leaving a blank web view until a manual refresh. This fork also drains on
 /// `appDidBecomeActive` to catch that case.
+///
+/// And it drains at neither moment unless the app is actually active — see
+/// `Navigator.inspectAllSessions`, and the tests at the foot of this file.
 final class NavigatorBackgroundRecoveryTests: XCTestCase {
     /// The fix: a session terminated while backgrounded is reloaded on
     /// `appDidBecomeActive`. Without this drain the session stays queued and the
@@ -98,11 +102,90 @@ final class NavigatorBackgroundRecoveryTests: XCTestCase {
                       "a session with no topmost visitable must not be recreated")
     }
 
-    private func makeNavigator(session: Session) -> Navigator {
+    // MARK: - Nothing starts a visit while the app is not active
+
+    /// The blank tab with a spinner on it, and the reason this gate exists.
+    ///
+    /// `UIApplication.willEnterForegroundNotification` is delivered for wakes
+    /// nobody is looking at — a Live Activity update, a tap on the Lock Screen
+    /// that stops at the passcode, an app-switcher snapshot — and those never
+    /// become active. Draining the queue there starts a `ColdBootVisit` into a
+    /// WebContent process the system is about to suspend: the load never
+    /// commits, `Session.reload` has already put a screenshot and a spinner
+    /// over the web view, and the app is suspended in that state. Measured on
+    /// an iPhone (2026-09-17): the visit started 1.7 s after the scene was back
+    /// in the background and the page sat behind that spinner for 36 minutes.
+    func test_appWillEnterForeground_whileNotActive_doesNotReloadOrDrainTheQueue() {
+        let session = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: session, appState: .background)
+
+        navigator.backgroundTerminatedWebViewSessions.append(session)
+
+        navigator.appWillEnterForeground()
+
+        XCTAssertEqual(session.reloadCallCount, 0,
+                       "a visit must not be started while the app is in the background")
+        XCTAssertEqual(navigator.backgroundTerminatedWebViewSessions.count, 1,
+                       "the queue must survive a wake that never became active, for the next real open")
+    }
+
+    /// The deferral is not a loss: the very next `didBecomeActive` — which
+    /// follows any real open within milliseconds — does the work.
+    func test_aWakeThatNeverBecameActive_isRecoveredAtTheNextRealOpen() {
+        let session = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        var state = UIApplication.State.background
+        let navigator = makeNavigator(session: session, appState: { state })
+
+        navigator.backgroundTerminatedWebViewSessions.append(session)
+        navigator.appWillEnterForeground()
+        XCTAssertEqual(session.reloadCallCount, 0)
+
+        state = .active
+        navigator.appDidBecomeActive()
+
+        XCTAssertTrue(navigator.backgroundTerminatedWebViewSessions.isEmpty)
+        XCTAssertEqual(session.reloadCallCount, 1, "the queued session is reloaded once, when someone is looking")
+    }
+
+    /// `.inactive` is the same answer as `.background`: behind the passcode
+    /// screen, mid-transition or under the app switcher, a visit is just as
+    /// stranded and the person cannot see the page either way.
+    func test_appWillEnterForeground_whileInactive_doesNotStartAVisit() {
+        let session = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: session, appState: .inactive)
+
+        navigator.backgroundTerminatedWebViewSessions.append(session)
+
+        navigator.appWillEnterForeground()
+
+        XCTAssertEqual(session.reloadCallCount, 0)
+        XCTAssertEqual(navigator.backgroundTerminatedWebViewSessions.count, 1)
+    }
+
+    /// The silently-relaunched shapes are gated by the same rule: recreating a
+    /// session is a visit too (`route` → cold boot), so it waits for active.
+    func test_aURLLessSessionIsNotRecreatedWhileNotActive() {
+        let session = VisitedSessionDouble(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: session, appState: .background)
+
+        navigator.appWillEnterForeground()
+
+        XCTAssertTrue(navigator.session === session,
+                      "a web view must not be recreated while the app is in the background")
+    }
+
+    private func makeNavigator(session: Session,
+                               appState: UIApplication.State = .active) -> Navigator {
+        makeNavigator(session: session, appState: { appState })
+    }
+
+    private func makeNavigator(session: Session,
+                               appState: @escaping () -> UIApplication.State) -> Navigator {
         Navigator(
             session: session,
             modalSession: Session(webView: Hotwire.config.makeWebView()),
-            configuration: .init(name: "", startLocation: URL(string: "https://example.com")!)
+            configuration: .init(name: "", startLocation: URL(string: "https://example.com")!),
+            appState: appState
         )
     }
 }

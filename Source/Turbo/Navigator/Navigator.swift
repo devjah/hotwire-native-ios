@@ -131,14 +131,20 @@ public class Navigator {
     ///   - session: the main `Session`
     ///   - modalSession: the `Session` used for the modal navigation controller
     ///   - delegate: _optional:_ delegate to handle custom view controllers
+    ///   - appState: _optional:_ where the app's activity is read from. The
+    ///     default asks `UIApplication`; a test passes the state it wants to
+    ///     pose, since the recovery rules here turn on being active and a test
+    ///     host is active for its whole life.
     init(session: Session,
          modalSession: Session,
          delegate: NavigatorDelegate? = nil,
-         configuration: Navigator.Configuration) {
+         configuration: Navigator.Configuration,
+         appState: (() -> UIApplication.State)? = nil) {
         self.session = session
         self.modalSession = modalSession
         self.configuration = configuration
-        self.appLifecycleObserver = AppLifecycleObserver()
+        self.appLifecycleObserver = appState.map { AppLifecycleObserver(stateProvider: $0) }
+            ?? AppLifecycleObserver()
 
         self.delegate = delegate ?? navigatorDelegate
 
@@ -327,7 +333,42 @@ extension Navigator: WKUIControllerDelegate {
 // MARK: - Session and web view reloading
 
 extension Navigator {
+    /// **Nothing here starts a visit while the app is not active.**
+    ///
+    /// Every recovery below ends in a visit — `reload(_:)` or
+    /// `recreateWebView(for:)` — and a visit issued while the app is in the
+    /// background is not merely wasted, it strands the page it was meant to
+    /// heal. `Session.reload` puts an (often empty) screenshot over the web
+    /// view and a spinner on top of it, then starts a `ColdBootVisit` whose
+    /// `webView.load` lands in a WebContent process the system is about to
+    /// suspend: the load never commits, the app is suspended in that state,
+    /// and the next time the person looks at that tab it is a blank screen
+    /// with a spinner on it. What finally runs the queued load is the web view
+    /// re-entering a window — which is why switching tabs and coming back
+    /// "refreshes" it, the cure people find by hand.
+    ///
+    /// Read off an iPhone's own log (2026-09-17, `dotvoz-agency-ios`): a wake
+    /// that never became active — a Live Activity update, a tap on the Lock
+    /// Screen behind the passcode, an app-switcher snapshot — delivered
+    /// `UIApplication.willEnterForegroundNotification`, `inspectAllSessions`
+    /// drained a session terminated during the suspension, and the cold boot
+    /// it started at 20:42:51 (1.7 s after the scene was back in the
+    /// background, 1 ms after `setProcessesShouldSuspend 1`) never committed.
+    /// That page sat behind a spinner for 36 minutes, until the next such wake
+    /// started the same visit again.
+    ///
+    /// So the state is checked, not assumed: `willEnterForeground` arrives
+    /// while `applicationState` is still `.background` and is *not* the moment
+    /// to act — on a real open `didBecomeActive` follows within milliseconds
+    /// and does the work, and on a wake nobody sees it never comes, which is
+    /// the whole point. Deferring costs nothing: the queue and the
+    /// silently-relaunched shapes below are facts about a page, and they keep.
     private func inspectAllSessions() {
+        guard appLifecycleObserver.appState == .active else {
+            logger.info("Skipping session inspection: app not active")
+            return
+        }
+
         logger.info("Inspecting sessions")
         [session, modalSession].forEach { inspect($0) }
     }
@@ -352,15 +393,18 @@ extension Navigator {
             return
         }
 
-        // Don't reload the web view if the app is in the background.
+        // Don't reload the web view unless the app is active.
         // Instead, save the session in `backgroundTerminatedWebViewSessions`
-        // and reload it when the app is back in foreground.
+        // and reload it when the app is active again.
         // Note: `applicationState` remains `.background` while the app is
         // foregrounding (until it becomes active), so terminations reported
-        // during that window also land here.
-        if appLifecycleObserver.appState == .background {
+        // during that window land here; so do terminations reported while the
+        // app is `.inactive` — behind the passcode screen, mid-transition, or
+        // under the app switcher — where a visit is just as stranded as one
+        // started in the background (see `inspectAllSessions`).
+        if appLifecycleObserver.appState != .active {
             if !backgroundTerminatedWebViewSessions.contains(where: { $0 === session }) {
-                logger.info("Skipping session reload: app in background")
+                logger.info("Skipping session reload: app not active")
                 backgroundTerminatedWebViewSessions.append(session)
             }
             return
@@ -449,6 +493,9 @@ extension Navigator: AppLifecycleObserverDelegate {
         // No-op
     }
 
+    /// Kept as a trigger, though it can only act on a page that is already
+    /// active: this notification also arrives for wakes nobody is looking at,
+    /// and `inspectAllSessions` is what tells the two apart.
     func appWillEnterForeground() {
         inspectAllSessions()
     }
@@ -459,7 +506,9 @@ extension Navigator: AppLifecycleObserverDelegate {
         // app becomes active — so `reloadIfPermitted` queues those sessions
         // *after* `appWillEnterForeground` has already inspected them, leaving
         // blank web views behind. Inspect again now that the app is active to
-        // drain anything queued during that window.
+        // drain anything queued during that window. Since the inspection is
+        // gated on being active, this is also where every deferred wake's work
+        // finally lands.
         inspectAllSessions()
     }
 }
