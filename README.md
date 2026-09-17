@@ -95,6 +95,24 @@ original URL left to compare against. `inspect()` therefore recreates any
 session that has visited a page but whose web view reports no URL and no load
 in flight, before consulting the probe.
 
+**None of these recoveries run unless the app is active.** Each one ends in a
+visit, and a visit started while the app is in the background strands the page
+it was meant to heal: `Session.reload` puts a screenshot and a spinner over the
+web view, and the `ColdBootVisit` behind them loads into a WebContent process
+the system is about to suspend, so it never commits — the app is suspended
+showing a spinner, and what finally runs the queued load is the web view
+re-entering a window, i.e. the "switch tabs and come back" people do by hand.
+`willEnterForeground` is delivered for wakes nobody is looking at (a Live
+Activity update, a Lock Screen tap that stops at the passcode, an app-switcher
+snapshot) and those never become active, so `inspectAllSessions` checks
+`applicationState` rather than trusting the notification; on a real open
+`didBecomeActive` arrives milliseconds later and does the work. Measured on an
+iPhone's own log (2026-09-17, `dotvoz-agency-ios`): the cold boot such a wake
+started landed 1.7 s after the scene was back in the background and never
+committed, and that page sat behind a spinner for 36 minutes until the next
+wake started the same visit again. For the same reason `reloadIfPermitted`
+queues whenever the app is not active, `.inactive` included.
+
 ### Web-initiated history restorations propose natively
 
 Upstream, a web-side `history.back()` is handled entirely inside the web view:

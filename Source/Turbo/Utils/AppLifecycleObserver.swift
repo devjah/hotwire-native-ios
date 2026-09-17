@@ -11,11 +11,19 @@ final class AppLifecycleObserver {
     weak var delegate: AppLifecycleObserverDelegate?
 
     var appState: UIApplication.State {
-        UIApplication.shared.applicationState
+        stateProvider()
     }
 
-    init(delegate: AppLifecycleObserverDelegate? = nil) {
+    /// Where `appState` comes from. `UIApplication.shared.applicationState` in
+    /// the app; a test injects the state it wants to pose, because the three
+    /// states this class reports on are precisely what a unit test cannot
+    /// produce — a test host is `.active` for its whole life.
+    private let stateProvider: () -> UIApplication.State
+
+    init(delegate: AppLifecycleObserverDelegate? = nil,
+         stateProvider: @escaping () -> UIApplication.State = { UIApplication.shared.applicationState }) {
         self.delegate = delegate
+        self.stateProvider = stateProvider
 
         NotificationCenter.default.addObserver(
             self,
