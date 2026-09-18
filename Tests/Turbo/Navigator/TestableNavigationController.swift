@@ -4,6 +4,8 @@ import UIKit
 /// Manipulate a navigation controller under test.
 /// Ensures `viewControllers` is updated synchronously.
 /// Manages `presentedViewController` directly because it isn't updated on the same thread.
+/// Invokes the dismissal completion synchronously because UIKit never finishes a
+/// presentation transition in a test bundle, so it would otherwise drop the completion.
 class TestableNavigationController: HotwireNavigationController {
     override var presentedViewController: UIViewController? {
         get { _presentedViewController }
@@ -34,12 +36,13 @@ class TestableNavigationController: HotwireNavigationController {
     override func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
         let dismissedViewController = _presentedViewController
         _presentedViewController = nil
-        super.dismiss(animated: false, completion: completion)
+        super.dismiss(animated: false, completion: nil)
 
         // Simulate UIKit's dismissal lifecycle, which doesn't run synchronously under
         // test: the dismissed controller's `viewDidDisappear` (`isBeingDismissed`)
-        // fires its modal dismissal handler.
+        // fires its modal dismissal handler, and only then the completion.
         (dismissedViewController as? HotwireNavigationController)?.modalDismissalHandler?()
+        completion?()
     }
 
     // MARK: Private

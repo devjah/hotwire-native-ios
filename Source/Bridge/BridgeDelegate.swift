@@ -52,7 +52,6 @@ public final class BridgeDelegate: BridgingDelegate {
     public func webViewDidBecomeActive(_ webView: WKWebView) {
         bridge = Bridge.getBridgeFor(webView)
         bridge?.delegate = self
-        destinationIsActive = true
 
         if bridge == nil {
             logger.warning("bridgeNotInitializedForWebView")
@@ -62,7 +61,6 @@ public final class BridgeDelegate: BridgingDelegate {
     public func webViewDidBecomeDeactivated() {
         bridge?.delegate = nil
         bridge = nil
-        destinationIsActive = false
     }
     
     @discardableResult
@@ -84,20 +82,16 @@ public final class BridgeDelegate: BridgingDelegate {
     
     public func onViewDidLoad() {
         logger.debug("[Bridge] bridgeDestinationViewDidLoad: \(self.resolvedLocation)")
-        destinationIsActive = true
         activeComponents.forEach { $0.viewDidLoad() }
     }
     
     public func onViewWillAppear() {
         logger.debug("[Bridge] bridgeDestinationViewWillAppear: \(self.resolvedLocation)")
-        destinationIsActive = true
-        replayQueuedMessages()
         activeComponents.forEach { $0.viewWillAppear() }
     }
     
     public func onViewDidAppear() {
         logger.debug("[Bridge] bridgeDestinationViewDidAppear: \(self.resolvedLocation)")
-        destinationIsActive = true
         activeComponents.forEach { $0.viewDidAppear() }
     }
     
@@ -108,7 +102,6 @@ public final class BridgeDelegate: BridgingDelegate {
     
     public func onViewDidDisappear() {
         activeComponents.forEach { $0.viewDidDisappear() }
-        destinationIsActive = false
         logger.debug("[Bridge] bridgeDestinationViewDidDisappear: \(self.resolvedLocation)")
     }
     
@@ -133,58 +126,35 @@ public final class BridgeDelegate: BridgingDelegate {
     
     @discardableResult
     public func bridgeDidReceiveMessage(_ message: Message) -> Bool {
-        guard resolvedLocation == message.metadata?.url else {
+        guard destinationIsActive,
+              resolvedLocation == message.metadata?.url else {
             logger.warning("bridgeDidIgnoreMessage: \(String(describing: message))")
             return false
         }
-
-        // The destination can be inactive while its web view is still live and
-        // attached — a backgrounded tab, or a screen covered by a modal. Server
-        // broadcasts keep mutating that page's DOM, and dropping the resulting
-        // bridge messages strands native state (e.g. a nav-bar button whose web
-        // element disconnected while the tab was backgrounded lingers forever).
-        // Queue them and replay in order when the destination reactivates.
-        guard destinationIsActive else {
-            logger.debug("[Bridge] bridgeDidQueueMessage (inactive destination): \(String(describing: message))")
-            queuedMessages.append(message)
-            if queuedMessages.count > Self.maxQueuedMessages {
-                queuedMessages.removeFirst(queuedMessages.count - Self.maxQueuedMessages)
-            }
-            return false
-        }
-
+        
         logger.debug("[Bridge] bridgeDidReceiveMessage \(String(describing: message))")
         getOrCreateComponent(name: message.component)?.didReceive(message: message)
-
+        
         return true
     }
     
     // MARK: Private
-
-    private static let maxQueuedMessages = 100
-    private var queuedMessages: [Message] = []
-
-    private func replayQueuedMessages() {
-        guard !queuedMessages.isEmpty else { return }
-        let messages = queuedMessages
-        queuedMessages = []
-        // Re-check the url guard per message: the page may have navigated
-        // while the destination was offscreen, staling the queue.
-        messages.filter { resolvedLocation == $0.metadata?.url }.forEach { message in
-            logger.debug("[Bridge] bridgeDidReplayQueuedMessage \(String(describing: message))")
-            getOrCreateComponent(name: message.component)?.didReceive(message: message)
-        }
-    }
-
+    
     private var initializedComponents: [String: BridgeComponent] = [:]
-    private var destinationIsActive = false
     private let componentTypes: [BridgeComponent.Type]
+    private var destinationIsActive: Bool {
+        bridge != nil
+    }
     private var resolvedLocation: String {
         webView?.url?.absoluteString ?? location
     }
     
     private var activeComponents: [BridgeComponent] {
-        return initializedComponents.values.filter { _ in destinationIsActive }
+        guard destinationIsActive else {
+            return []
+        }
+
+        return Array(initializedComponents.values)
     }
     
     private func getOrCreateComponent(name: String) -> BridgeComponent? {

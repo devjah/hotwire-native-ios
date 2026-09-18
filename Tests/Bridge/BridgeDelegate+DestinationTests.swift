@@ -57,17 +57,21 @@ class BridgeDelegateDestinationTests: XCTestCase {
         XCTAssertNotNil(component)
     }
 
-    func testBridgeDestinationIsInactiveAfterViewDidDisappear() {
+    func testBridgeDestinationRemainsActiveAfterViewDidDisappearWhenWebViewIsStillActive() {
+        // Tab bar destinations can receive view disappearance callbacks while
+        // their web view remains active and attached to the bridge.
         delegate.onViewDidLoad()
         delegate.onViewDidDisappear()
         delegate.bridgeDidReceiveMessage(.test)
 
         let component: BridgeComponentSpy? = delegate.component()
-        XCTAssertNil(component)
+        XCTAssertNotNil(component)
     }
 
     func testBridgeDestinationIsActiveAfterWebViewDidBecomeActive() {
-        delegate.webViewDidBecomeActive(WKWebView())
+        let webView = WKWebView()
+        Bridge.initialize(webView)
+        delegate.webViewDidBecomeActive(webView)
         delegate.bridgeDidReceiveMessage(.test)
 
         let component: BridgeComponentSpy? = delegate.component()
