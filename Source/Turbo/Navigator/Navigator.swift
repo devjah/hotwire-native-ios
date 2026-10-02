@@ -113,10 +113,17 @@ public class Navigator {
         hierarchyController.clearAll(animated: animated)
     }
 
-    /// Reloads the main and modal `Session`.
+    /// Reloads the main `Session`, and the modal one while a modal is on screen.
+    ///
+    /// A dismissed modal's session still holds the last page it showed, so
+    /// reloading it regardless fetches that page again for nobody: a form
+    /// closed days ago, re-requested on every reload and answered with
+    /// whatever the server now says about it.
     public func reload() {
         session.reload()
-        modalSession.reload()
+        if hierarchyController.isModalPresented {
+            modalSession.reload()
+        }
     }
 
     // MARK: Internal
@@ -414,7 +421,19 @@ extension Navigator {
     }
 
     private func reload(_ session: Session) {
+        // A dead web view behind a dismissed modal has nothing on screen to
+        // heal. Replace it rather than reload its last page, so the next
+        // modal starts on a live one.
+        guard !isOffscreenModal(session) else {
+            recreateWebView(for: session)
+            return
+        }
+
         session.reload()
+    }
+
+    private func isOffscreenModal(_ session: Session) -> Bool {
+        session === modalSession && !hierarchyController.isModalPresented
     }
 
     /// Inspects the provided session to handle terminated web view process and reloads or recreates the web view accordingly.
@@ -470,6 +489,8 @@ extension Navigator {
             return
         }
 
+        let offscreenModal = isOffscreenModal(session)
+
         logger.debug("Recreating web view for \(url.absoluteString)")
         let newSession = Session(webView: Hotwire.config.makeWebView())
         newSession.pathConfiguration = session.pathConfiguration
@@ -481,6 +502,12 @@ extension Navigator {
         } else {
             modalSession = newSession
         }
+
+        // Routing a dismissed modal's last URL presents that sheet again — on
+        // the next foreground after its process was reclaimed, days after it
+        // was closed, showing whatever the page answers now. The fresh session
+        // is enough: the next modal visit starts on it.
+        guard !offscreenModal else { return }
 
         let options = VisitOptions(action: .replace, response: nil)
         let properties = session.pathConfiguration?.properties(for: url) ?? PathProperties()

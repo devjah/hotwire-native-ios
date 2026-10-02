@@ -174,6 +174,66 @@ final class NavigatorBackgroundRecoveryTests: XCTestCase {
                       "a web view must not be recreated while the app is in the background")
     }
 
+    // MARK: - A dismissed modal stays dismissed
+
+    /// The modal session outlives its sheet: after a dismissal it still holds
+    /// the last page it showed. Reloading it then fetches a form closed days
+    /// ago — seen on an iPhone (2026-10-02, `fitness-ios`) as a 403 for a
+    /// reschedule form whose session had long since been moved.
+    func test_reload_leavesTheModalSessionAloneWhileNoModalIsPresented() {
+        let session = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        let modalSession = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: session, modalSession: modalSession)
+
+        navigator.reload()
+
+        XCTAssertEqual(session.reloadCallCount, 1)
+        XCTAssertEqual(modalSession.reloadCallCount, 0,
+                       "a dismissed modal's last page must not be fetched again")
+    }
+
+    func test_reload_reloadsThePresentedModalSession() {
+        let session = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        let modalSession = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: session, modalSession: modalSession)
+        navigator.rootViewController.present(navigator.modalRootViewController, animated: false)
+
+        navigator.reload()
+
+        XCTAssertEqual(session.reloadCallCount, 1)
+        XCTAssertEqual(modalSession.reloadCallCount, 1)
+    }
+
+    /// The same iPhone, a minute later: the hidden modal web view came back
+    /// without a URL, and recreating it routed its last URL — which presented
+    /// the long-dismissed sheet again, showing the 403.
+    func test_appDidBecomeActive_doesNotPresentADismissedModalAgain() {
+        let modalSession = VisitedSessionDouble(webView: Hotwire.config.makeWebView())
+        modalSession.pathConfiguration = modalPathConfiguration
+        let navigator = makeNavigator(session: Session(webView: Hotwire.config.makeWebView()),
+                                      modalSession: modalSession)
+
+        navigator.appDidBecomeActive()
+
+        XCTAssertNil(navigator.rootViewController.presentedViewController,
+                     "a dismissed modal must not be presented again")
+        XCTAssertTrue(navigator.modalRootViewController.viewControllers.isEmpty)
+        XCTAssertFalse(navigator.modalSession === modalSession,
+                       "the dead web view is still replaced, so the next modal starts on a live one")
+    }
+
+    func test_appDidBecomeActive_reloadsNoTerminatedModalSessionWhileNoModalIsPresented() {
+        let modalSession = ReloadRecordingSession(webView: Hotwire.config.makeWebView())
+        let navigator = makeNavigator(session: Session(webView: Hotwire.config.makeWebView()),
+                                      modalSession: modalSession)
+        navigator.backgroundTerminatedWebViewSessions.append(modalSession)
+
+        navigator.appDidBecomeActive()
+
+        XCTAssertTrue(navigator.backgroundTerminatedWebViewSessions.isEmpty)
+        XCTAssertEqual(modalSession.reloadCallCount, 0)
+    }
+
     private func makeNavigator(session: Session,
                                appState: UIApplication.State = .active) -> Navigator {
         makeNavigator(session: session, appState: { appState })
@@ -181,12 +241,31 @@ final class NavigatorBackgroundRecoveryTests: XCTestCase {
 
     private func makeNavigator(session: Session,
                                appState: @escaping () -> UIApplication.State) -> Navigator {
-        Navigator(
+        makeNavigator(session: session, modalSession: Session(webView: Hotwire.config.makeWebView()), appState: appState)
+    }
+
+    private func makeNavigator(session: Session,
+                               modalSession: Session,
+                               appState: @escaping () -> UIApplication.State = { .active }) -> Navigator {
+        let navigator = Navigator(
             session: session,
-            modalSession: Session(webView: Hotwire.config.makeWebView()),
+            modalSession: modalSession,
             configuration: .init(name: "", startLocation: URL(string: "https://example.com")!),
             appState: appState
         )
+        navigator.hierarchyController = NavigationHierarchyController(
+            delegate: navigator,
+            navigationController: TestableNavigationController(),
+            modalNavigationController: TestableNavigationController()
+        )
+        return navigator
+    }
+
+    /// `/page` — `VisitedSessionDouble`'s visitable — is a modal, as the
+    /// reschedule form was.
+    private var modalPathConfiguration: PathConfiguration {
+        let json = #"{"settings": {}, "rules": [{"patterns": ["/page"], "properties": {"context": "modal"}}]}"#
+        return PathConfiguration(sources: [.data(Data(json.utf8))])
     }
 }
 
