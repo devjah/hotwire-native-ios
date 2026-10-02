@@ -17,10 +17,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
+      # The image's default Xcode, not the newest one: a newer Xcode can land on
+      # the image before its iOS simulator runtime does, leaving no simulator to
+      # test on. Device names change from image to image too, so the test runs
+      # on whichever iPhone simulator is there.
       - name: Run Tests
-        run: xcodebuild test -scheme HotwireNative -destination "name=iPhone 17 Pro" | xcpretty && exit ${PIPESTATUS[0]}
+        run: |
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for runtime, ds in sorted(devices.items(), reverse=True)
+                     if ".iOS-" in runtime for d in ds if d["name"].startswith("iPhone")))
+          ')
+          xcodebuild test -scheme HotwireNative -destination "id=$udid" | xcpretty && exit ${PIPESTATUS[0]}
