@@ -130,6 +130,14 @@ class NavigationHierarchyController {
         }
     }
     
+    /// Whether the modal stack is on screen. The modal session can't say: it
+    /// outlives a dismissal, still holding the visit — and the visitable — it
+    /// last showed.
+    var isModalPresented: Bool {
+        navigationController.presentedViewController === modalNavigationController
+            && !modalNavigationController.isBeingDismissed
+    }
+
     private var isInModalContext: Bool {
         navigationController.presentedViewController != nil
         && !modalNavigationController.isBeingDismissed
