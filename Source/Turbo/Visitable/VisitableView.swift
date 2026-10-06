@@ -48,7 +48,6 @@ open class VisitableView: UIView {
 
     open lazy var refreshControl: UIRefreshControl = {
         let refreshControl = UIRefreshControl()
-        refreshControl.translatesAutoresizingMaskIntoConstraints = false
         refreshControl.addTarget(self, action: #selector(refresh(_:)), for: .valueChanged)
         return refreshControl
     }()
@@ -67,26 +66,29 @@ open class VisitableView: UIView {
         refreshControl.isRefreshing
     }
 
+    /// The scroll view owns the control's frame. It used to be added as a plain
+    /// subview with Auto Layout constraints (centred on this view, pinned to the
+    /// safe-area top, no width), which fought UIKit's own management: a scroll
+    /// view adopts a `UIRefreshControl` subview as its `refreshControl` and, the
+    /// moment a refresh begins, sets the frame itself. On iOS 27 that frame
+    /// lands at x = 0 with the zero width the constraints had left it, so the
+    /// spinner spun centred on the screen's left edge, half cut off. Handing the
+    /// control over through the property is the documented path since iOS 10:
+    /// UIKit keeps it centred, just above the content and below the adjusted
+    /// content inset, on every release.
     private func installRefreshControl() {
         guard let scrollView = webView?.scrollView, allowsPullToRefresh else { return }
 
         #if !targetEnvironment(macCatalyst)
-        scrollView.addSubview(refreshControl)
-
-        /// Infer refresh control's default height from its frame, if given.
-        /// Otherwise fallback to 60 (the default height).
-        let refreshControlHeight = refreshControl.frame.height > 0 ? refreshControl.frame.height : 60
-
-        NSLayoutConstraint.activate([
-            refreshControl.centerXAnchor.constraint(equalTo: centerXAnchor),
-            refreshControl.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
-            refreshControl.heightAnchor.constraint(equalToConstant: refreshControlHeight)
-        ])
+        scrollView.refreshControl = refreshControl
         #endif
     }
 
     private func removeRefreshControl() {
         refreshControl.endRefreshing()
+        if let scrollView = webView?.scrollView, scrollView.refreshControl === refreshControl {
+            scrollView.refreshControl = nil
+        }
         refreshControl.removeFromSuperview()
     }
 
