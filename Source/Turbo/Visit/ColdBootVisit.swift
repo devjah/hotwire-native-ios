@@ -100,6 +100,13 @@ extension ColdBootVisit: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        // Embedded documents have their own responses. A failed iframe must
+        // not fail the main visit or remove its navigation delegate.
+        guard navigationResponse.isForMainFrame else {
+            decisionHandler(.allow)
+            return
+        }
+
         if let httpResponse = navigationResponse.response as? HTTPURLResponse {
             if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
                 decisionHandler(.allow)
