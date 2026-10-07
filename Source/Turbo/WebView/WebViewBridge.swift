@@ -28,6 +28,7 @@ protocol WebViewVisitDelegate: AnyObject {
 /// with the web view/JavaScript
 final class WebViewBridge {
     private let messageHandlerName = "turbo"
+    private var navigationEvaluationID = UUID()
 
     weak var delegate: WebViewDelegate?
     weak var pageLoadDelegate: WebViewPageLoadDelegate?
@@ -58,11 +59,12 @@ final class WebViewBridge {
     // MARK: - JS
 
     func visitLocation(_ location: URL, options: VisitOptions, restorationIdentifier: String?) {
+        navigationEvaluationID = UUID()
         callJavaScript(function: "window.turboNative.visitLocationWithOptionsAndRestorationIdentifier", arguments: [
             location.absoluteString,
             options.toJSON(),
             restorationIdentifier
-        ])
+        ], recoverOnJavaScriptException: true)
     }
 
     func clearSnapshotCache() {
@@ -74,12 +76,13 @@ final class WebViewBridge {
     }
 
     func cancelVisit(withIdentifier identifier: String) {
+        navigationEvaluationID = UUID()
         callJavaScript(function: "window.turboNative.cancelVisitWithIdentifier", arguments: [identifier])
     }
 
     // MARK: JavaScript Evaluation
 
-    private func callJavaScript(function: String, arguments: [Any?] = []) {
+    private func callJavaScript(function: String, arguments: [Any?] = [], recoverOnJavaScriptException: Bool = false) {
         let expression = JavaScriptExpression(function: function, arguments: arguments)
 
         guard let script = expression.wrappedString else {
@@ -89,11 +92,24 @@ final class WebViewBridge {
 
         logger.debug("[Bridge] → \(function) \(arguments)")
 
+        let navigationEvaluationID = navigationEvaluationID
         webView.evaluateJavaScript(script) { result, error in
+            // An old evaluation must not restart a newer or cancelled visit.
+            guard !recoverOnJavaScriptException || self.navigationEvaluationID == navigationEvaluationID else { return }
             logger.debug("[Bridge] = \(function) evaluation complete")
 
-            if let result = result as? [String: Any], let error = result["error"] as? String, let stack = result["stack"] as? String {
-                NSLog("Error evaluating JavaScript function `%@': %@\n%@", function, error, stack)
+            if let result = result as? [String: Any], let message = result["error"] as? String {
+                let stack = result["stack"] as? String ?? ""
+                NSLog("Error evaluating JavaScript function `%@': %@\n%@", function, message, stack)
+                // Cache and cancellation errors must not interrupt a healthy visit.
+                guard recoverOnJavaScriptException else { return }
+                // The wrapper catches JavaScript exceptions, so WebKit reports
+                // a successful evaluation. Forward the exception to the same
+                // recovery path as a native evaluation failure.
+                let error = NSError(domain: WKError.errorDomain,
+                                    code: WKError.javaScriptExceptionOccurred.rawValue,
+                                    userInfo: [NSLocalizedDescriptionKey: message])
+                self.delegate?.webView(self, didFailJavaScriptEvaluationWithError: error)
             } else if let error {
                 self.delegate?.webView(self, didFailJavaScriptEvaluationWithError: error)
             }
