@@ -13,6 +13,7 @@ public class Session: NSObject {
 
     private lazy var bridge = WebViewBridge(webView: webView)
     private var initialized = false
+    private var isReplaced = false
     private var refreshing = false
 
     private var isShowingStaleContent = false
@@ -56,6 +57,8 @@ public class Session: NSObject {
     }
 
     public func visit(_ visitable: Visitable, options: VisitOptions? = nil, reload: Bool = false) {
+        // An error view may still hold a retry callback for a retired session.
+        guard !isReplaced else { return }
         visitable.visitableDelegate = self
 
         if reload {
@@ -89,6 +92,28 @@ public class Session: NSObject {
         log("Reloading session with visitable: \(visitable)")
         initialized = false
         visit(visitable)
+        topmostVisit = currentVisit
+    }
+
+    /// Stop callbacks and detach the dead web view before its replacement takes
+    /// over the same visitable. The controller stays in its navigation stack.
+    func prepareForReplacement() {
+        isReplaced = true
+        delegate = nil
+        bridge.delegate = nil
+        bridge.pageLoadDelegate = nil
+        bridge.visitDelegate = nil
+        currentVisit?.cancel()
+        deactivateActivatedVisitable()
+        currentVisit = nil
+        topmostVisit = nil
+        previousVisit = nil
+    }
+
+    /// Adopt an already presented controller, which will not receive another
+    /// appearance callback just because its web view was replaced.
+    func restoreVisitable(_ visitable: Visitable) {
+        visit(visitable, action: .replace)
         topmostVisit = currentVisit
     }
 
