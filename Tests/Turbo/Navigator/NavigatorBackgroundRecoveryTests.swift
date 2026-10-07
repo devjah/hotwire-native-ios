@@ -234,6 +234,88 @@ final class NavigatorBackgroundRecoveryTests: XCTestCase {
         XCTAssertEqual(modalSession.reloadCallCount, 0)
     }
 
+    @MainActor
+    func test_probeFinishingWhileInactive_defersRecoveryUntilActive() throws {
+        let webView = DeferredProbeWebView()
+        let session = VisitedSessionDouble(webView: webView)
+        var state = UIApplication.State.active
+        let navigator = makeNavigator(session: session, appState: { state })
+
+        navigator.appDidBecomeActive()
+        XCTAssertEqual(webView.probes.count, 1)
+        state = .inactive
+        try webView.finishProbeAsTerminated()
+
+        XCTAssertTrue(navigator.session === session)
+        XCTAssertEqual(navigator.backgroundTerminatedWebViewSessions.count, 1)
+        state = .active
+        navigator.appDidBecomeActive()
+        XCTAssertTrue(navigator.backgroundTerminatedWebViewSessions.isEmpty)
+        XCTAssertEqual(session.reloadCallCount, 1)
+    }
+
+    @MainActor
+    func test_overlappingProbes_cannotReplaceTheModalSessionWithAStaleMainSession() throws {
+        let webView = DeferredProbeWebView()
+        let session = VisitedSessionDouble(webView: webView)
+        let navigator = makeNavigator(session: session)
+        let modalSession = navigator.modalSession
+
+        navigator.appWillEnterForeground()
+        navigator.appDidBecomeActive()
+        XCTAssertEqual(webView.probes.count, 2)
+        try webView.finishProbeAsTerminated()
+        let replacement = navigator.session
+        XCTAssertFalse(replacement === session)
+
+        try webView.finishProbeAsTerminated()
+        XCTAssertTrue(navigator.session === replacement)
+        XCTAssertTrue(navigator.modalSession === modalSession,
+                      "a callback for an old main session must never replace the modal session")
+    }
+
+    @MainActor
+    func test_probeFinishingDuringNavigation_doesNotReplaceLoadingSession() throws {
+        let webView = DeferredProbeWebView()
+        let session = VisitedSessionDouble(webView: webView)
+        let navigator = makeNavigator(session: session)
+
+        navigator.appDidBecomeActive()
+        XCTAssertEqual(webView.probes.count, 1)
+        webView.stubLoading = true
+        try webView.finishProbeAsTerminated()
+
+        XCTAssertTrue(navigator.session === session)
+    }
+
+    @MainActor
+    func test_loadingSessionWithAURL_isNotProbed() {
+        let webView = DeferredProbeWebView()
+        webView.stubLoading = true
+        let session = VisitedSessionDouble(webView: webView)
+        let navigator = makeNavigator(session: session)
+
+        navigator.appDidBecomeActive()
+
+        XCTAssertTrue(navigator.session === session)
+        XCTAssertTrue(webView.probes.isEmpty)
+    }
+
+    @MainActor
+    func test_probeForPreviousPage_doesNotReplaceNewDestination() throws {
+        let webView = DeferredProbeWebView()
+        let session = VisitedSessionDouble(webView: webView)
+        let navigator = makeNavigator(session: session)
+
+        navigator.appDidBecomeActive()
+        XCTAssertEqual(webView.probes.count, 1)
+        session.visitable = TestVisitable(url: URL(string: "https://example.com/new")!)
+        try webView.finishProbeAsTerminated()
+
+        XCTAssertTrue(navigator.session === session)
+        XCTAssertEqual(session.activeVisitable?.initialVisitableURL.path, "/new")
+    }
+
     private func makeNavigator(session: Session,
                                appState: UIApplication.State = .active) -> Navigator {
         makeNavigator(session: session, appState: { appState })
@@ -273,7 +355,11 @@ final class NavigatorBackgroundRecoveryTests: XCTestCase {
 /// and `activeVisitable` set) while its web view holds whatever state the test
 /// gives it — used to simulate the silent-relaunch states `inspect()` handles.
 private final class VisitedSessionDouble: Session {
-    let visitable = TestVisitable(url: URL(string: "https://example.com/page")!)
+    var visitable = TestVisitable(url: URL(string: "https://example.com/page")!)
+
+    private(set) var reloadCallCount = 0
+
+    override func reload() { reloadCallCount += 1 }
 
     override var topmostVisitable: Visitable? { visitable }
     override var activeVisitable: Visitable? { visitable }
@@ -292,5 +378,26 @@ private final class ReloadRecordingSession: Session {
     override func reload() {
         reloadCallCount += 1
         super.reload()
+    }
+}
+
+private final class DeferredProbeWebView: WKWebView {
+    var probes: [(@MainActor (Any?, Error?) -> Void)] = []
+    var stubLoading = false
+    override var isLoading: Bool { stubLoading }
+    override var url: URL? { URL(string: "https://example.com/page")! }
+
+    override func evaluateJavaScript(_ javaScriptString: String,
+                                    completionHandler: (@MainActor (Any?, Error?) -> Void)? = nil) {
+        if javaScriptString == "location.href", let completionHandler {
+            probes.append(completionHandler)
+        }
+    }
+
+    func finishProbeAsTerminated() throws {
+        XCTAssertFalse(probes.isEmpty)
+        guard !probes.isEmpty else { return XCTFail("No pending probe") }
+        probes.removeFirst()(nil, NSError(domain: WKError.errorDomain,
+                                        code: WKError.webContentProcessTerminated.rawValue))
     }
 }
