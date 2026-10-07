@@ -17,6 +17,63 @@ class ScriptMessageTests: XCTestCase {
         XCTAssertEqual(message.location, URL(string: "http://turbo.test")!)
     }
 
+    func test_parse_rejectsMissingRequiredFields() {
+        let names: [ScriptMessage.Name] = [
+            .pageLoaded, .visitProposed, .visitStarted, .visitRequestStarted,
+            .visitRequestCompleted, .visitRequestFailed, .visitRequestFinished,
+            .visitRendered, .visitCompleted, .formSubmissionStarted, .formSubmissionFinished,
+            .visitRequestFailedWithNonHttpStatusCode
+        ]
+        XCTAssertEqual(names.count, 12)
+        for name in names {
+            let script = FakeScriptMessage(body: ["name": name.rawValue, "data": [:]])
+            XCTAssertNil(ScriptMessage(message: script), "Accepted incomplete \(name)")
+        }
+    }
+
+    func test_parse_rejectsIncorrectFieldTypes() {
+        let cases: [(ScriptMessage.Name, [String: Any])] = [
+            (.pageLoaded, ["restorationIdentifier": 123]),
+            (.visitProposed, ["location": "https://example.com", "options": "advance"]),
+            (.visitProposed, ["location": 123, "options": [:]]),
+            (.visitStarted, ["identifier": "123", "hasCachedSnapshot": "true", "isPageRefresh": false]),
+            (.visitStarted, ["identifier": "123", "hasCachedSnapshot": true, "isPageRefresh": "false"]),
+            (.visitRequestFailed, ["identifier": "123", "statusCode": "500"]),
+            (.visitCompleted, ["identifier": "123", "restorationIdentifier": false])
+        ]
+        XCTAssertEqual(cases.count, 7)
+        for (name, data) in cases {
+            let script = FakeScriptMessage(body: ["name": name.rawValue, "data": data])
+            XCTAssertNil(ScriptMessage(message: script), "Accepted malformed \(name)")
+        }
+    }
+
+    func test_parse_acceptsRequiredFieldsForEveryEvent() {
+        let cases: [(ScriptMessage.Name, [String: Any])] = [
+            (.pageLoaded, ["restorationIdentifier": "abc"]),
+            (.visitProposed, ["location": "https://example.com", "options": ["action": "advance"]]),
+            (.visitStarted, ["identifier": "123", "hasCachedSnapshot": false, "isPageRefresh": false]),
+            (.visitRequestStarted, ["identifier": "123"]),
+            (.visitRequestCompleted, ["identifier": "123"]),
+            (.visitRequestFailed, ["identifier": "123", "statusCode": 500]),
+            (.visitRequestFinished, ["identifier": "123"]),
+            (.visitRendered, ["identifier": "123"]),
+            (.visitCompleted, ["identifier": "123", "restorationIdentifier": "abc"]),
+            (.formSubmissionStarted, ["location": "https://example.com"]),
+            (.formSubmissionFinished, ["location": "https://example.com"]),
+            (.visitRequestFailedWithNonHttpStatusCode,
+             ["location": "https://example.com", "identifier": "123", "statusCode": 0]),
+            (.pageInvalidated, [:]), (.pageLoadFailed, [:]), (.turboIsReady, ["isReady": true]),
+            (.errorRaised, [:]), (.log, [:]),
+            (.visitProposalScrollingToAnchor, [:]), (.visitProposalRefreshingPage, [:])
+        ]
+        XCTAssertEqual(cases.count, 19)
+        for (name, data) in cases {
+            let script = FakeScriptMessage(body: ["name": name.rawValue, "data": data])
+            XCTAssertNotNil(ScriptMessage(message: script), "Rejected valid \(name)")
+        }
+    }
+
     func test_parse_withInvalidBody_returnsNil() {
         let script = FakeScriptMessage(body: "foo")
 

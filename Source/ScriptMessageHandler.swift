@@ -13,6 +13,9 @@ final class ScriptMessageHandler: NSObject, WKScriptMessageHandler {
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive scriptMessage: WKScriptMessage) {
+        // Message handlers are exposed to subframes even when the bridge's
+        // user scripts are injected only into the main frame.
+        guard scriptMessage.frameInfo.isMainFrame else { return }
         delegate?.scriptMessageHandlerDidReceiveMessage(scriptMessage)
     }
 }
