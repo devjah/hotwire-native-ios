@@ -509,9 +509,23 @@ extension Navigator {
         // is enough: the next modal visit starts on it.
         guard !offscreenModal else { return }
 
-        let options = VisitOptions(action: .replace, response: nil)
-        let properties = session.pathConfiguration?.properties(for: url) ?? PathProperties()
-        route(VisitProposal(url: url, options: options, properties: properties))
+        // Recovery replaces the web view, not the navigation destination.
+        // Routing again can dismiss a form over the main session or move a
+        // modal to the main stack when its original proposal supplied context.
+        guard let visitable = session.activeVisitable else { return }
+        session.prepareForReplacement()
+        // Earlier pages keep their appearance delegate when recovery preserves
+        // the stack. They must restore through the replacement on Back as well.
+        let navigationControllers = [hierarchyController.navigationController,
+                                     hierarchyController.modalNavigationController]
+            + hierarchyController.stackedModalNavigationControllers
+        for controller in navigationControllers.flatMap({ $0.viewControllers }) {
+            if let retainedVisitable = controller as? Visitable,
+               retainedVisitable.visitableDelegate === session {
+                retainedVisitable.visitableDelegate = newSession
+            }
+        }
+        newSession.restoreVisitable(visitable)
     }
 }
 
