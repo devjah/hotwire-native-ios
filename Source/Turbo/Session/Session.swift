@@ -86,6 +86,10 @@ public class Session: NSObject {
             return
         }
 
+        reload(visitable)
+    }
+
+    private func reload(_ visitable: Visitable) {
         log("Reloading session with visitable: \(visitable)")
         initialized = false
         visit(visitable)
@@ -349,13 +353,35 @@ extension Session: WebViewDelegate {
         delegate?.sessionDidFinishFormSubmission(self)
     }
 
+    /// Turbo found the page's tracked assets (`data-turbo-track="reload"`)
+    /// changed — a deploy — and asks for a full load instead of the render.
+    ///
+    /// The page it invalidated is the one the visit in flight was for, which
+    /// is not always the topmost visitable. Going **back**, the revealed
+    /// screen's restore visit is in flight while `topmostVisit` still names
+    /// the screen being popped (it moves only at `visitableViewDidAppear`), so
+    /// reloading the topmost cold-booted the popped page into a controller
+    /// leaving the stack and cancelled the restore — whose screenshot and
+    /// spinner nothing then took down. The revealed screen sat behind them for
+    /// good, over a live page, with nothing left to recover it
+    /// (hotwired/hotwire-native-ios#208, #218).
     func webViewDidInvalidatePage(_ bridge: WebViewBridge) {
-        guard let visitable = topmostVisitable else { return }
+        guard let visitable = invalidatedVisitable else { return }
 
         visitable.updateVisitableScreenshot()
         visitable.showVisitableScreenshot()
         visitable.showVisitableActivityIndicator()
-        reload()
+        reload(visitable)
+    }
+
+    /// The visitable a page invalidation belongs to: the in-flight visit's,
+    /// else the topmost one (an invalidation with no native visit in flight,
+    /// such as a page refresh the web started itself).
+    var invalidatedVisitable: Visitable? {
+        if let currentVisit, currentVisit.state == .started {
+            return currentVisit.visitable
+        }
+        return topmostVisitable
     }
 
     /// Initial page load failed, this will happen when we couldn't find Turbo JS on the page
