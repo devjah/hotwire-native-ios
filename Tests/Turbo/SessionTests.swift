@@ -110,6 +110,45 @@ class SessionTests: XCTestCase {
         XCTAssertEqual(sessionDelegate.allFailedRequestErrors[1], .load(.notPresent))
     }
 
+    /// A deploy changes the tracked assets, and Turbo invalidates the page on
+    /// the next visit. Going back, that visit is the revealed screen's restore
+    /// while the topmost visitable is still the screen being popped: the
+    /// reload is the revealed screen's, or its spinner outlives the page.
+    @MainActor
+    func test_pageInvalidated_whileAnotherVisitableIsVisiting_reloadsTheVisitingOne() async {
+        let popped = TestVisitable(url: url("/"))
+        let loaded = expectation(description: "Wait for the cold boot.")
+        sessionDelegate.didChange = { loaded.fulfill() }
+        session.visit(popped)
+        await fulfillment(of: [loaded], timeout: defaultTimeout)
+        sessionDelegate.didChange = nil
+        session.visitableViewDidAppear(popped)
+        XCTAssertIdentical(session.topmostVisitable, popped)
+
+        let revealed = TestVisitable(url: url("/"))
+        session.visit(revealed, action: .restore)
+        XCTAssertIdentical(session.invalidatedVisitable, revealed)
+
+        session.webViewDidInvalidatePage(WebViewBridge(webView: WKWebView()))
+
+        XCTAssertIdentical(session.topmostVisitable, revealed)
+        XCTAssertIdentical(session.activeVisitable, revealed)
+        XCTAssertTrue(revealed.visitableView.activityIndicatorView.isAnimating)
+        XCTAssertFalse(popped.visitableView.activityIndicatorView.isAnimating)
+    }
+
+    @MainActor
+    func test_pageInvalidated_withNoVisitInFlight_reloadsTheTopmostVisitable() async {
+        let visitable = TestVisitable(url: url("/"))
+        let loaded = expectation(description: "Wait for the cold boot.")
+        sessionDelegate.didChange = { loaded.fulfill() }
+        session.visit(visitable)
+        await fulfillment(of: [loaded], timeout: defaultTimeout)
+        session.visitableViewDidAppear(visitable)
+
+        XCTAssertIdentical(session.invalidatedVisitable, visitable)
+    }
+
     // MARK: - Server
 
     @MainActor
