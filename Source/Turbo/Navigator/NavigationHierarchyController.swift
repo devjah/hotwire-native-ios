@@ -179,10 +179,30 @@ class NavigationHierarchyController {
                 }
             } else {
                 modalNavigationController.setViewControllers([controller], animated: proposal.animated)
-                modalNavigationController.setModalPresentationStyle(via: proposal)
-                navigationController.present(modalNavigationController, animated: proposal.animated)
+                presentModal(via: proposal)
             }
         }
+    }
+
+    /// Present the modal stack styled for `proposal` — once the last sheet it
+    /// showed has gone. A sheet's detents live on its presentation controller,
+    /// and while the stack is still sliding away (a swipe down, then a tap
+    /// straight after it) that is still the outgoing one: the style landed on
+    /// it, UIKit held the present until the dismissal ended, and the sheet
+    /// came up on a fresh controller at the default full height, a `medium`
+    /// sheet included.
+    private func presentModal(via proposal: VisitProposal) {
+        if modalNavigationController.isBeingDismissed,
+           let coordinator = modalNavigationController.transitionCoordinator {
+            coordinator.animate(alongsideTransition: nil) { [weak self] context in
+                guard !context.isCancelled else { return }
+                DispatchQueue.main.async { self?.presentModal(via: proposal) }
+            }
+            return
+        }
+
+        modalNavigationController.setModalPresentationStyle(via: proposal)
+        navigationController.present(modalNavigationController, animated: proposal.animated)
     }
 
     private func pushOrReplace(on navigationController: UINavigationController,
@@ -258,8 +278,7 @@ class NavigationHierarchyController {
                 topmostModalNavigationController.replaceLastViewController(with: controller)
             } else {
                 modalNavigationController.setViewControllers([controller], animated: false)
-                modalNavigationController.setModalPresentationStyle(via: proposal)
-                navigationController.present(modalNavigationController, animated: proposal.animated)
+                presentModal(via: proposal)
             }
         }
     }

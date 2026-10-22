@@ -539,6 +539,43 @@ final class NavigationHierarchyControllerTests: XCTestCase {
         }
     }
 
+    // One modal navigation controller presents every sheet, and its sheet
+    // presentation controller outlives a dismissal: each style sets its own
+    // detents and the one the sheet opens at, whatever the last sheet left.
+    func test_modal_largeAfterMedium_opensAtTheLargeDetent() throws {
+        guard #available(iOS 16.0, *) else { throw XCTSkip("sheet detents need iOS 16") }
+        routeModal("/one", style: "medium")
+        let sheet = try XCTUnwrap(modalNavigationController.sheetPresentationController)
+        XCTAssertEqual(sheet.detents.map(\.identifier), [.medium, .large])
+        navigator.route(VisitProposal(path: "/", presentation: .clearAll))
+
+        routeModal("/two", style: "large")
+        XCTAssertEqual(modalNavigationController.sheetPresentationController?.detents.map(\.identifier), [.large])
+        XCTAssertEqual(modalNavigationController.sheetPresentationController?.selectedDetentIdentifier, .large)
+    }
+
+    func test_modal_mediumDraggedToLarge_opensAtTheMediumDetentNextTime() throws {
+        guard #available(iOS 16.0, *) else { throw XCTSkip("sheet detents need iOS 16") }
+        routeModal("/one", style: "medium")
+        // A drag to full height.
+        modalNavigationController.sheetPresentationController?.selectedDetentIdentifier = .large
+        navigator.route(VisitProposal(path: "/", presentation: .clearAll))
+
+        routeModal("/two", style: "medium")
+        XCTAssertEqual(modalNavigationController.sheetPresentationController?.selectedDetentIdentifier, .medium)
+    }
+
+    func test_modal_dimmedAfterUndimmed_dimsEveryDetent() throws {
+        guard #available(iOS 16.0, *) else { throw XCTSkip("sheet detents need iOS 16") }
+        navigator.route(VisitProposal(path: "/one", context: .modal,
+                                      additionalProperties: ["modal_style": "fit", "modal_dimming": false]))
+        XCTAssertEqual(modalNavigationController.sheetPresentationController?.largestUndimmedDetentIdentifier, .fitContent)
+        navigator.route(VisitProposal(path: "/", presentation: .clearAll))
+
+        routeModal("/two", style: "medium")
+        XCTAssertNil(modalNavigationController.sheetPresentationController?.largestUndimmedDetentIdentifier)
+    }
+
     func test_modalDismissGestureEnabled_isCorrectlySet() throws {
         let proposal = VisitProposal(
             path: "/new",
@@ -737,6 +774,10 @@ final class NavigationHierarchyControllerTests: XCTestCase {
     }
 
     // Simulate a "real" app so presenting view controllers works under test.
+    private func routeModal(_ path: String, style: String) {
+        navigator.route(VisitProposal(path: path, context: .modal, additionalProperties: ["modal_style": style]))
+    }
+
     private func loadNavigationControllerInWindow() {
         loadNavigationControllerInWindow(navigationController)
     }
