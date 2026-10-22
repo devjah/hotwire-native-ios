@@ -51,6 +51,33 @@ extension ScriptMessage {
         }
 
         self.init(name: name, data: data)
+        guard hasRequiredData else { return nil }
+    }
+
+    // Validate fields before WebViewBridge dispatches the message to its delegates.
+    // JavaScript messages may be incomplete or have unexpected types.
+    private var hasRequiredData: Bool {
+        switch name {
+        case .pageLoaded:
+            return restorationIdentifier != nil
+        case .visitProposed:
+            return location != nil && options != nil
+        case .visitStarted:
+            return identifier != nil && data["hasCachedSnapshot"] is Bool && data["isPageRefresh"] is Bool
+        case .visitRequestStarted, .visitRequestCompleted, .visitRequestFinished, .visitRendered:
+            return identifier != nil
+        case .visitRequestFailed:
+            return identifier != nil && statusCode != nil
+        case .visitRequestFailedWithNonHttpStatusCode:
+            return location != nil && identifier != nil && statusCode != nil
+        case .visitCompleted:
+            return identifier != nil && restorationIdentifier != nil
+        case .formSubmissionStarted, .formSubmissionFinished:
+            return location != nil
+        case .pageLoadFailed, .turboIsReady, .errorRaised, .pageInvalidated, .log,
+             .visitProposalScrollingToAnchor, .visitProposalRefreshingPage:
+            return true
+        }
     }
 }
 
