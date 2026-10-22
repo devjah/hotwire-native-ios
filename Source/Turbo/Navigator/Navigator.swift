@@ -459,22 +459,29 @@ extension Navigator {
             return
         }
 
+        guard !session.webView.isLoading else { return }
+
         // A session that has visited a page but whose web view reports no URL and
         // no load in flight was silently relaunched into an empty context after
         // its process was reclaimed. `queryWebContentProcessState` can't catch
         // this shape — JS evaluates fine in the fresh context and there is no
         // original `webView.url` left to compare against — so recreate directly.
-        if session.webView.url == nil, !session.webView.isLoading {
+        if session.webView.url == nil {
             logger.debug("Recreating web view: silently relaunched with no URL")
             recreateWebView(for: session)
             return
         }
 
+        let inspectedVisitable = session.activeVisitable
         session.webView.queryWebContentProcessState { [weak self] state in
             guard case .terminated = state else {
                 logger.debug("Skipping web view recreation: process not terminated")
                 return
             }
+            // Navigation can change while WebKit evaluates the probe. Its
+            // result must not replace a new destination or interrupt a load.
+            guard session.activeVisitable === inspectedVisitable,
+                  !session.webView.isLoading else { return }
             self?.recreateWebView(for: session)
         }
     }
@@ -483,6 +490,18 @@ extension Navigator {
     ///
     /// - Parameter session: The session to recreate.
     private func recreateWebView(for session: Session) {
+        // A second pending probe may finish after the first replaced this
+        // session. In particular, an old main session is not a modal session.
+        guard session === self.session || session === modalSession else { return }
+
+        // The app can become inactive while the asynchronous probe is running.
+        guard appLifecycleObserver.appState == .active else {
+            if !backgroundTerminatedWebViewSessions.contains(where: { $0 === session }) {
+                backgroundTerminatedWebViewSessions.append(session)
+            }
+            return
+        }
+
         guard let _ = session.activeVisitable?.visitableViewController,
               let url = session.activeVisitable?.initialVisitableURL else {
             logger.debug("Skipping web view recreation: no initialVisitableURL found")
