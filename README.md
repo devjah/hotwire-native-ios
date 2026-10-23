@@ -124,6 +124,29 @@ or dismisses stacked modal(s) — down to the screen the web history went back t
 then restores there. Native-initiated visits (including the restore visits the
 session issues on pop-back) are unaffected.
 
+### Upstream PRs carried before they merge
+
+These open upstream PRs are already in this fork. When upstream merges one, the
+next upstream merge touches the same lines; resolve as noted.
+
+- [#255](https://github.com/hotwired/hotwire-native-ios/pull/255) same-host
+  non-HTTP(S) URLs open via the system. Taken as is.
+- [#267](https://github.com/hotwired/hotwire-native-ios/pull/267) iframe error
+  responses don't fail a cold boot. Taken as is, plus non-HTTP tests.
+- [#268](https://github.com/hotwired/hotwire-native-ios/pull/268) the cached
+  snapshot loads before the request is issued. Taken as is, plus a test.
+- [#269](https://github.com/hotwired/hotwire-native-ios/pull/269) stale cookies
+  leave `HTTPCookieStorage`. Keep ours: it sets cookies before deleting stale
+  ones, so a concurrent native request never misses the session cookie.
+- [#262](https://github.com/hotwired/hotwire-native-ios/pull/262) a late-attaching
+  destination answers the bridge's `ready`. Keep ours: upstream's version drops
+  `ready` after a reload on the same screen and re-registers on every push and pop.
+
+Two fixes already here cover open upstream PRs, so keep ours there too:
+[#263](https://github.com/hotwired/hotwire-native-ios/pull/263) (subframe script
+messages) and [#270](https://github.com/hotwired/hotwire-native-ios/pull/270)
+(reload on an invalidated back navigation).
+
 ## Contributing
 
 Hotwire Native for iOS is open-source software, freely distributable under the terms of an [MIT-style license](LICENSE). The [source code is hosted on GitHub](https://github.com/hotwired/hotwire-native-bridge). Development is sponsored by [37signals](https://37signals.com/).
