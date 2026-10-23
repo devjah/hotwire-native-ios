@@ -16,15 +16,17 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
     private var window: UIWindow!
 
     override func setUp() async throws {
-        Hotwire.registerBridgeComponents([BridgeComponentSpy.self])
-
-        session = Session(webView: Hotwire.config.makeWebView())
-        destination = TestBridgeDestination(url: pageURL)
-
         eventLoop = try SelectorEventLoop(selector: KqueueSelector())
         server = DefaultHTTPServer.turboServer(eventLoop: eventLoop)
         try server.start()
         DispatchQueue.global().async { self.eventLoop.runForever() }
+
+        try await WebKitWarmUp.loadOnePageOnScreen(URL(string: "http://localhost:8080/")!)
+
+        Hotwire.registerBridgeComponents([BridgeComponentSpy.self])
+
+        session = Session(webView: Hotwire.config.makeWebView())
+        destination = TestBridgeDestination(url: pageURL)
 
         window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         destination.view.frame = window.bounds
@@ -33,10 +35,10 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
     }
 
     override func tearDown() {
-        window.isHidden = true
+        window?.isHidden = true
         window = nil
-        server.stopAndWait()
-        eventLoop.stop()
+        server?.stopAndWait()
+        eventLoop?.stop()
         Hotwire.registerBridgeComponents([])
     }
 
@@ -168,6 +170,32 @@ private func waitUntil(
 
 private struct WaitTimeout: Error, CustomStringConvertible {
     let description: String
+}
+
+/// WebKit loads a page at background priority while its web view is off screen, which is
+/// where the covered test's page loads. The first page a freshly booted simulator loads is
+/// slow, and at background priority it takes many minutes on CI; later ones are quick. So
+/// load one page from the test server in a web view on screen first, once per run, which
+/// also starts WebKit's network process at foreground priority.
+@MainActor
+private enum WebKitWarmUp {
+    private static var isWarm = false
+
+    static func loadOnePageOnScreen(_ url: URL) async throws {
+        guard !isWarm else { return }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let webView = WKWebView(frame: window.bounds)
+        window.addSubview(webView)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
+        webView.load(URLRequest(url: url))
+        try await waitUntil("a page loaded on screen", timeout: 600) {
+            try await webView.evaluateJavaScript("location.href === '\(url.absoluteString)' && document.readyState === 'complete'") as? Bool == true
+        }
+        isWarm = true
+    }
 }
 
 private final class TestBridgeDestination: HotwireWebViewController {
