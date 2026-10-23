@@ -13,6 +13,9 @@ on:
 jobs:
   build-and-test:
     runs-on: macos-15
+    # Some tests wait on WebKit with upstream's 10000-second timeout. A load
+    # that never answers would otherwise hold the run for GitHub's six hours.
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
