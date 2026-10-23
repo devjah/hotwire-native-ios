@@ -94,20 +94,24 @@ class SessionTests: XCTestCase {
         XCTAssertTrue(sessionDelegate.sessionDidFinishRequestCalled)
     }
 
+    /// A page without Turbo reports both "not ready" and "page load failed",
+    /// back to back. The visit fails once, so one error view shows.
     @MainActor
-    func test_coldBootVisit_whenVisitFailsFromMissingLibrary_providesNotReadyAndNotPresentErrors() async throws {
-        let expectation = self.expectation(description: "Wait for both load errors.")
-        expectation.expectedFulfillmentCount = 2
-        sessionDelegate.didChange = { expectation.fulfill() }
+    func test_coldBootVisit_whenVisitFailsFromMissingLibrary_failsOnceWithNotReady() async throws {
+        let failed = self.expectation(description: "Wait for the load error.")
+        failed.assertForOverFulfill = false
+        sessionDelegate.didChange = { failed.fulfill() }
 
         let visitable = TestVisitable(url: url("/missing-library"))
         session.visit(visitable)
-        await fulfillment(of: [expectation], timeout: turboTimeout + defaultTimeout)
+        await fulfillment(of: [failed], timeout: turboTimeout + defaultTimeout)
 
-        XCTAssertTrue(sessionDelegate.sessionDidFailRequestCalled)
-        XCTAssertEqual(sessionDelegate.allFailedRequestErrors.count, 2)
-        XCTAssertEqual(sessionDelegate.allFailedRequestErrors[0], .load(.notReady))
-        XCTAssertEqual(sessionDelegate.allFailedRequestErrors[1], .load(.notPresent))
+        let secondFailure = self.expectation(description: "No second load error.")
+        secondFailure.isInverted = true
+        sessionDelegate.didChange = { secondFailure.fulfill() }
+        await fulfillment(of: [secondFailure], timeout: 1)
+
+        XCTAssertEqual(sessionDelegate.allFailedRequestErrors, [.load(.notReady)])
     }
 
     /// A deploy changes the tracked assets, and Turbo invalidates the page on
