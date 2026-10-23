@@ -1,6 +1,4 @@
 @testable import HotwireNative
-import OHHTTPStubs
-import OHHTTPStubsSwift
 import XCTest
 
 // On the main actor because `resolve(location:)` reads `Hotwire.config` for its
@@ -12,16 +10,19 @@ final class JSFetchRecoveryHandlerTests: XCTestCase {
     private let handler = JSFetchRecoveryHandler()
     private let testURL = URL(string: "https://example.com/page")!
 
+    override func setUp() {
+        URLProtocol.registerClass(StubURLProtocol.self)
+    }
+
     override func tearDown() {
-        HTTPStubs.removeAllStubs()
+        URLProtocol.unregisterClass(StubURLProtocol.self)
+        StubURLProtocol.removeAllStubs()
     }
 
     // MARK: - No redirect
 
     func test_resolve_noRedirect_whenResponseURLMatchesRequestURL() async throws {
-        stub(condition: isAbsoluteURLString(testURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 200, headers: nil)
-        }
+        StubURLProtocol.stub(testURL, statusCode: 200)
 
         let result = try await handler.resolve(location: testURL)
         XCTAssertEqual(result, .noRedirect)
@@ -32,19 +33,8 @@ final class JSFetchRecoveryHandlerTests: XCTestCase {
     func test_resolve_sameOriginRedirect_whenResponseURLDiffersButSameHost() async throws {
         let redirectURL = URL(string: "https://example.com/other")!
 
-        stub(condition: isAbsoluteURLString(testURL.absoluteString)) { _ in
-            // Simulate a redirect by returning a response whose URL differs from the request URL.
-            // OHHTTPStubs doesn't follow real redirects, so we use a redirect response
-            // that URLSession will follow, landing at a different URL on the same host.
-            let response = HTTPStubsResponse(data: Data(), statusCode: 301, headers: ["Location": redirectURL.absoluteString])
-            response.requestTime = 0
-            response.responseTime = 0
-            return response
-        }
-
-        stub(condition: isAbsoluteURLString(redirectURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 200, headers: nil)
-        }
+        StubURLProtocol.stub(testURL, statusCode: 301, headers: ["Location": redirectURL.absoluteString])
+        StubURLProtocol.stub(redirectURL, statusCode: 200)
 
         let result = try await handler.resolve(location: testURL)
         XCTAssertEqual(result, .sameOriginRedirect(redirectURL))
@@ -55,13 +45,8 @@ final class JSFetchRecoveryHandlerTests: XCTestCase {
     func test_resolve_crossOriginRedirect_whenResponseURLHasDifferentHost() async throws {
         let redirectURL = URL(string: "https://other.com/page")!
 
-        stub(condition: isAbsoluteURLString(testURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 301, headers: ["Location": redirectURL.absoluteString])
-        }
-
-        stub(condition: isAbsoluteURLString(redirectURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 200, headers: nil)
-        }
+        StubURLProtocol.stub(testURL, statusCode: 301, headers: ["Location": redirectURL.absoluteString])
+        StubURLProtocol.stub(redirectURL, statusCode: 200)
 
         let result = try await handler.resolve(location: testURL)
         XCTAssertEqual(result, .crossOriginRedirect(redirectURL))
@@ -70,9 +55,7 @@ final class JSFetchRecoveryHandlerTests: XCTestCase {
     // MARK: - Request failure
 
     func test_resolve_throwsRequestFailed_whenNetworkErrorOccurs() async {
-        stub(condition: isAbsoluteURLString(testURL.absoluteString)) { _ in
-            HTTPStubsResponse(error: URLError(.notConnectedToInternet))
-        }
+        StubURLProtocol.stub(testURL, error: URLError(.notConnectedToInternet))
 
         do {
             _ = try await handler.resolve(location: testURL)
@@ -91,18 +74,14 @@ final class JSFetchRecoveryHandlerTests: XCTestCase {
     func test_resolve_noRedirect_whenNon2xxResponseWithSameURL() async throws {
         // A 401 or 500 response still means the server is reachable.
         // After removing the status code validation, this should return .noRedirect.
-        stub(condition: isAbsoluteURLString(testURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 401, headers: nil)
-        }
+        StubURLProtocol.stub(testURL, statusCode: 401)
 
         let result = try await handler.resolve(location: testURL)
         XCTAssertEqual(result, .noRedirect)
     }
 
     func test_resolve_noRedirect_when500ResponseWithSameURL() async throws {
-        stub(condition: isAbsoluteURLString(testURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 500, headers: nil)
-        }
+        StubURLProtocol.stub(testURL, statusCode: 500)
 
         let result = try await handler.resolve(location: testURL)
         XCTAssertEqual(result, .noRedirect)
@@ -113,17 +92,98 @@ final class JSFetchRecoveryHandlerTests: XCTestCase {
     func test_resolve_detectsRedirect_evenWhenFinalResponseIsNon2xx() async throws {
         let redirectURL = URL(string: "https://other.com/login")!
 
-        stub(condition: isAbsoluteURLString(testURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 301, headers: ["Location": redirectURL.absoluteString])
-        }
-
-        stub(condition: isAbsoluteURLString(redirectURL.absoluteString)) { _ in
-            HTTPStubsResponse(data: Data(), statusCode: 401, headers: nil)
-        }
+        StubURLProtocol.stub(testURL, statusCode: 301, headers: ["Location": redirectURL.absoluteString])
+        StubURLProtocol.stub(redirectURL, statusCode: 401)
 
         let result = try await handler.resolve(location: testURL)
         XCTAssertEqual(result, .crossOriginRedirect(redirectURL))
     }
+}
+
+// MARK: - Stubbed responses
+
+/// Answers requests to stubbed URLs with canned responses, the way a server would.
+///
+/// OHHTTPStubs can't stand in here. After it reports a redirect, it goes on to
+/// deliver the 3xx response and finish loading, while URLSession is already
+/// following the redirect with a new request. That leaves the task with two
+/// endings, and `URLSession.data(for:)` traps on the second one, killing the
+/// test runner. This protocol only reports the redirect, then URLSession stops
+/// it and loads the new location through a fresh instance.
+private final class StubURLProtocol: URLProtocol {
+    private enum Stub {
+        case response(statusCode: Int, headers: [String: String])
+        case failure(Error)
+    }
+
+    // URLSession asks `canInit(with:)` from its own threads.
+    private static let lock = NSLock()
+    private static var stubs: [URL: Stub] = [:]
+
+    static func stub(_ url: URL, statusCode: Int, headers: [String: String] = [:]) {
+        setStub(.response(statusCode: statusCode, headers: headers), for: url)
+    }
+
+    static func stub(_ url: URL, error: Error) {
+        setStub(.failure(error), for: url)
+    }
+
+    static func removeAllStubs() {
+        lock.lock()
+        defer { lock.unlock() }
+        stubs.removeAll()
+    }
+
+    private static func setStub(_ stub: Stub, for url: URL) {
+        lock.lock()
+        defer { lock.unlock() }
+        stubs[url] = stub
+    }
+
+    private static func stub(for request: URLRequest) -> Stub? {
+        guard let url = request.url else { return nil }
+        lock.lock()
+        defer { lock.unlock() }
+        return stubs[url]
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        stub(for: request) != nil
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let client = client else { return }
+        guard let url = request.url, let stub = Self.stub(for: request) else {
+            client.urlProtocol(self, didFailWithError: URLError(.resourceUnavailable))
+            return
+        }
+
+        switch stub {
+        case .failure(let error):
+            client.urlProtocol(self, didFailWithError: error)
+
+        case .response(let statusCode, let headers):
+            let response = HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: "HTTP/1.1", headerFields: headers)!
+
+            if (300..<400).contains(statusCode),
+               let location = headers["Location"],
+               let redirectURL = URL(string: location, relativeTo: url)?.absoluteURL {
+                var redirectRequest = request
+                redirectRequest.url = redirectURL
+                client.urlProtocol(self, wasRedirectedTo: redirectRequest, redirectResponse: response)
+                return
+            }
+
+            client.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client.urlProtocolDidFinishLoading(self)
+        }
+    }
+
+    override func stopLoading() {}
 }
 
 // MARK: - Equatable for test assertions
