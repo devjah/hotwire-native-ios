@@ -4,6 +4,8 @@ import XCTest
 @MainActor
 final class NavigationHierarchyControllerHistoricalLocationTests: XCTestCase {
     override func setUp() {
+        session = SessionSpy(webView: Hotwire.config.makeWebView())
+        modalSession = Session(webView: Hotwire.config.makeWebView())
         navigationController = TestableNavigationController()
         modalNavigationController = TestableNavigationController()
 
@@ -23,6 +25,16 @@ final class NavigationHierarchyControllerHistoricalLocationTests: XCTestCase {
         navigator.hierarchyController = hierarchyController
 
         loadNavigationControllerInWindow()
+    }
+
+    override func tearDown() {
+        window.rootViewController = nil
+        navigator = nil
+        hierarchyController = nil
+        navigationController = nil
+        modalNavigationController = nil
+        session = nil
+        modalSession = nil
     }
 
     // Resume behaviour:
@@ -120,8 +132,8 @@ final class NavigationHierarchyControllerHistoricalLocationTests: XCTestCase {
         XCTAssertEqual(navigationController.viewControllers.count, 1)
     }
 
-    private let session = SessionSpy(webView: Hotwire.config.makeWebView())
-    private let modalSession = Session(webView: Hotwire.config.makeWebView())
+    private var session: SessionSpy!
+    private var modalSession: Session!
 
     private var navigator: Navigator!
     private var hierarchyController: NavigationHierarchyController!

@@ -4,20 +4,26 @@ import WebKit
 import XCTest
 
 class ColdBootVisitTests: XCTestCase {
-    private let webView = WKWebView()
+    private var webView: WKWebView!
     private let visitDelegate = TestVisitDelegate()
     private var visit: ColdBootVisit!
     private var visitable: TestVisitable!
     let url = URL(string: "http://localhost/")!
 
     override func setUp() {
-
+        webView = WKWebView()
         let bridge = WebViewBridge(webView: webView)
         visitable = TestVisitable(url: url)
         visitable.currentVisitableURL = URL(string: "http://localhost/new")!
 
         visit = ColdBootVisit(visitable: visitable, options: VisitOptions(), bridge: bridge)
         visit.delegate = visitDelegate
+    }
+
+    override func tearDown() {
+        visit = nil
+        visitable = nil
+        webView = nil
     }
 
     func test_start_transitionsToStartState() {
