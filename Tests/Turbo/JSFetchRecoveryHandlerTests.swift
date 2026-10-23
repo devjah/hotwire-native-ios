@@ -3,6 +3,11 @@ import OHHTTPStubs
 import OHHTTPStubsSwift
 import XCTest
 
+// On the main actor because `resolve(location:)` reads `Hotwire.config` for its
+// default timeout. The first read builds a `WKProcessPool`, which initializes
+// WebKit, and WebKit traps when that happens off the main thread. Run alone,
+// these async tests would otherwise do it from the cooperative thread pool.
+@MainActor
 final class JSFetchRecoveryHandlerTests: XCTestCase {
     private let handler = JSFetchRecoveryHandler()
     private let testURL = URL(string: "https://example.com/page")!
