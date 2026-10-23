@@ -149,6 +149,33 @@ class SessionTests: XCTestCase {
         XCTAssertIdentical(session.invalidatedVisitable, visitable)
     }
 
+    /// Offline, the revealed screen's restore fetch fails inside the pop
+    /// animation, while the topmost visitable is still the screen being
+    /// popped: the retry's cold boot is the revealed screen's, or its spinner
+    /// outlives the page.
+    @MainActor
+    func test_retryAfterFailedFetch_whileAnotherVisitableIsTopmost_reloadsTheFailedVisitsVisitable() async {
+        let popped = TestVisitable(url: url("/"))
+        let loaded = expectation(description: "Wait for the cold boot.")
+        sessionDelegate.didChange = { loaded.fulfill() }
+        session.visit(popped)
+        await fulfillment(of: [loaded], timeout: defaultTimeout)
+        sessionDelegate.didChange = nil
+        session.visitableViewDidAppear(popped)
+        XCTAssertIdentical(session.topmostVisitable, popped)
+
+        let revealed = TestVisitable(url: url("/"))
+        session.visit(revealed, action: .restore)
+
+        // A JavaScript visit keeps its placeholder identifier until Turbo reports it started.
+        session.retryOrFailCurrentVisit(with: .load(.invalidResponse), visitIdentifier: "(pending)")
+
+        XCTAssertIdentical(session.topmostVisitable, revealed)
+        XCTAssertIdentical(session.activeVisitable, revealed)
+        XCTAssertTrue(revealed.visitableView.activityIndicatorView.isAnimating)
+        XCTAssertFalse(popped.visitableView.activityIndicatorView.isAnimating)
+    }
+
     // MARK: - Server
 
     @MainActor
