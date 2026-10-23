@@ -75,6 +75,32 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
         XCTAssertNotNil(connectedComponent)
     }
 
+    /// Pull to refresh, `Navigator.reload()` and the recovery of a terminated web view all
+    /// reload the session under the destination that still owns its web view. The reloaded
+    /// document announces itself to that destination, which must register its components
+    /// again: nothing of the previous document's registration survives the reload.
+    func testDestinationKeepsItsComponentsAcrossAReload() async throws {
+        _ = destination.view
+
+        session.visit(destination)
+        try await waitForPageScript()
+        destination.viewDidAppear(false)
+        try await waitForRegisteredComponents()
+
+        _ = try await evaluate("window.loadedBeforeReload = true")
+        session.reload()
+        try await poll {
+            try await self.evaluate("window.loadedBeforeReload === undefined && typeof window.webBridge === 'object'") as? Bool == true
+        }
+        try await waitForRegisteredComponents()
+
+        let supported = try await evaluate("window.nativeBridge.supportedComponents.join(',')") as? String
+        XCTAssertEqual(supported, "two")
+
+        let strandedMessages = try await evaluate("window.webBridge.pendingMessages.length") as? Int
+        XCTAssertEqual(strandedMessages, 0)
+    }
+
     // MARK: Private
 
     /// Non-nil once a component message has actually reached native for this destination.

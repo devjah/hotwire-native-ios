@@ -62,11 +62,56 @@ final class BridgeReadyHandshakeTests: XCTestCase {
         XCTAssertTrue(destination.onBridgeComponentInitializedWasCalled)
     }
 
+    /// A reload (pull to refresh, a recovered web view, a page a deploy invalidated) loads
+    /// a new document under the destination that already owns the web view. That document
+    /// has registered nothing yet, so its announcement is the destination's to answer again.
+    func testDestinationAnswersEveryDocumentItOwns() async throws {
+        delegate.webViewDidBecomeActive(webView)
+
+        try await loadPage()
+        try await waitForRegisteredComponents()
+
+        try await loadPage()
+        try await waitForRegisteredComponents()
+
+        let supported = try await evaluate("window.nativeBridge.supportedComponents.join(',')") as? String
+        XCTAssertEqual(supported, "two")
+
+        let strandedMessages = try await evaluate("window.webBridge.pendingMessages.length") as? Int
+        XCTAssertEqual(strandedMessages, 0)
+    }
+
+    /// Every push and pop hands the session's one web view to another destination without
+    /// a new document. That document already answered its announcement, so the destination
+    /// taking it over has nothing to register.
+    func testDestinationTakingOverAnAnsweredDocumentRegistersNothing() async throws {
+        delegate.webViewDidBecomeActive(webView)
+
+        try await loadPage()
+        try await waitForRegisteredComponents()
+
+        delegate.webViewDidBecomeDeactivated()
+        let nextDestination = AppBridgeDestination()
+        let nextDelegate = BridgeDelegate(location: pageURL.absoluteString,
+                                          destination: nextDestination,
+                                          componentTypes: [BridgeComponentSpy.self])
+        nextDelegate.webViewDidBecomeActive(webView)
+
+        // A registration would run from a detached `Task`; let it land before reading.
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        let supported = try await evaluate("window.nativeBridge.supportedComponents.join(',')") as? String
+        XCTAssertEqual(supported, "two")
+    }
+
     // MARK: Private
 
     private let pageURL = URL(string: "https://37signals.com/")!
 
+    /// Each load gets its own waiter: one that has seen a load returns at once.
     private func loadPage() async throws {
+        navigation = NavigationWaiter()
+        webView.navigationDelegate = navigation
         webView.loadHTMLString(Self.page, baseURL: pageURL)
         try await navigation.waitForLoad()
     }

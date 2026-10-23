@@ -35,17 +35,23 @@ public final class Bridge: Bridgable {
         loadIntoWebView()
     }
 
-    /// A document announces itself once, at document start. A destination that attaches
-    /// after that announcement never hears it, so the components it owns are never
-    /// registered and every message the page has queued for them stays queued. Deliver the
-    /// announcement to a destination that attached late, once per destination per document.
+    /// A document announces itself once, at document start, and the destination that owns
+    /// the web view answers by registering the app's components with it. A destination whose
+    /// screen went away while its page was still loading (a sheet closed before its cold
+    /// load arrived, a screen covered by a push) has already given the web view up, so the
+    /// announcement finds nobody, and every message the page queues waits for a registration
+    /// that never comes. Hold the announcement for the next destination that attaches.
+    ///
+    /// Each announcement is answered exactly once. Registration belongs to the document,
+    /// not to the screen showing it: a reload is a new document whose announcement the
+    /// destination still on screen must answer again, while a push or pop only hands an
+    /// answered document to another destination, and registering again there would only
+    /// append duplicates.
     @MainActor
     func notifyDelegateOfDocumentAnnouncementIfNeeded() {
-        guard documentDidAnnounceItself,
-              let delegate,
-              delegate !== delegateNotifiedOfCurrentDocument else { return }
+        guard documentAnnouncementIsUnanswered, let delegate else { return }
 
-        delegateNotifiedOfCurrentDocument = delegate
+        documentAnnouncementIsUnanswered = false
         delegate.bridgeDidInitialize()
     }
 
@@ -124,8 +130,8 @@ public final class Bridge: Bridgable {
     // MARK: Private
 
     private static var instances: [Bridge] = []
-    private var documentDidAnnounceItself = false
-    private weak var delegateNotifiedOfCurrentDocument: BridgeDelegate?
+    /// Set by each document's `ready`, cleared once a destination has been told.
+    private var documentAnnouncementIsUnanswered = false
 
     /// This needs to match whatever the JavaScript file uses
     private let bridgeGlobal = "window.nativeBridge"
@@ -194,7 +200,7 @@ extension Bridge: ScriptMessageHandlerDelegate {
     @MainActor
     func scriptMessageHandlerDidReceiveMessage(_ scriptMessage: WKScriptMessage) {
         if let event = scriptMessage.body as? String, event == "ready" {
-            documentDidAnnounceItself = true
+            documentAnnouncementIsUnanswered = true
             notifyDelegateOfDocumentAnnouncementIfNeeded()
             return
         }
