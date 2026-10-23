@@ -124,6 +124,27 @@ or dismisses stacked modal(s) — down to the screen the web history went back t
 then restores there. Native-initiated visits (including the restore visits the
 session issues on pop-back) are unaffected.
 
+### Going back with the keyboard up keeps the revealed page's scroll position
+
+Going back, the session starts the revealed screen's restore visit as the pop
+begins, while the shared web view still shows the page being popped. That visit
+makes the revealed page Turbo's current history entry before it renders. If an
+input on the popped page had the keyboard up, moving the web view off that
+screen closes the keyboard, and UIKit clamps the scroll view to the popped
+page's range without it. WebKit hands that scroll to the page a frame later, so
+Turbo's scroll observer recorded the popped page's offset as the revealed page's
+position, and the restore visit scrolled there
+([#214](https://github.com/hotwired/hotwire-native-ios/issues/214)). A list
+reopened from a chat thread or a form landed wherever the thread or form had
+been.
+
+This fork's `turbo.js` adapter records no scroll positions while a native
+restore visit is waiting to scroll, so the visit restores the position the page
+had when it was covered. Only that one visit counts. Once it has scrolled, been
+cancelled (a back swipe abandoned halfway), failed, or been replaced by any
+other visit, scrolls record as usual. A reload or a recovery loads a new page
+that inherits nothing.
+
 ### Upstream PRs carried before they merge
 
 These open upstream PRs are already in this fork. When upstream merges one, the
@@ -142,10 +163,14 @@ next upstream merge touches the same lines; resolve as noted.
   destination answers the bridge's `ready`. Keep ours: upstream's version drops
   `ready` after a reload on the same screen and re-registers on every push and pop.
 
-Two fixes already here cover open upstream PRs, so keep ours there too:
+Three fixes already here cover open upstream PRs, so keep ours there too:
 [#263](https://github.com/hotwired/hotwire-native-ios/pull/263) (subframe script
-messages) and [#270](https://github.com/hotwired/hotwire-native-ios/pull/270)
-(reload on an invalidated back navigation).
+messages), [#270](https://github.com/hotwired/hotwire-native-ios/pull/270)
+(reload on an invalidated back navigation) and
+[#217](https://github.com/hotwired/hotwire-native-ios/pull/217) (scroll position
+lost going back with the keyboard up). #217 keeps the revealed screen's
+screenshot up behind a revealed-by-pop flag that stays set, so later reloads and
+recoveries of that screen stay frozen.
 
 ## Contributing
 

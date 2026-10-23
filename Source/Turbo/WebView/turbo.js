@@ -147,6 +147,8 @@
       }
 
       this.currentVisit = visit
+      this.restoringVisit = nativeInitiated && visit.action === "restore" ? visit : null
+      this.ignoreScrollsUntilRestored(visit.history)
       this.postMessage("visitStarted", { identifier: visit.identifier, hasCachedSnapshot: visit.hasCachedSnapshot(), isPageRefresh: visit.isPageRefresh || false })
       this.loadCachedSnapshotForVisitWithIdentifier(visit.identifier)
       this.issueRequestForVisitWithIdentifier(visit.identifier)
@@ -209,6 +211,43 @@
 
     log(message) {
       this.postMessage("log", { message: message })
+    }
+
+    // Scroll restoration
+
+    // Going back, the native side starts the revealed screen's restore visit
+    // while the web view still shows the page being popped, and the visit makes
+    // the revealed page Turbo's current history entry before it renders. A
+    // scroll that lands in between belongs to the page still on screen. With
+    // the keyboard up, moving the web view off the popped screen closes the
+    // keyboard, UIKit clamps the shared scroll view to the popped page's range,
+    // and WebKit hands that scroll to the page a frame later. Turbo recorded it
+    // as the revealed page's position and restored that. Until the restore
+    // visit has scrolled, scrolls aren't recorded, so it restores the position
+    // the page had when it was covered.
+    ignoreScrollsUntilRestored(history) {
+      if (!history || typeof history.updateRestorationData !== "function" || history.turboNativeIgnoresScrollsUntilRestored) return
+
+      const adapter = this
+      const updateRestorationData = history.updateRestorationData
+      history.updateRestorationData = function(additionalData) {
+        if (adapter.isRestoringScrollPosition() && additionalData && "scrollPosition" in additionalData) {
+          const { scrollPosition, ...otherData } = additionalData
+          if (Object.keys(otherData).length == 0) return
+          additionalData = otherData
+        }
+        return updateRestorationData.call(this, additionalData)
+      }
+      history.turboNativeIgnoresScrollsUntilRestored = true
+    }
+
+    // Only one restore visit counts, and only until it scrolls. It stops
+    // counting once it has restored its position, been cancelled (a back swipe
+    // abandoned halfway), failed, or been replaced by any other visit. A reload
+    // or a recovery loads a new page, which starts with none.
+    isRestoringScrollPosition() {
+      const visit = this.restoringVisit
+      return !!visit && visit.state == "started" && !visit.scrolled
     }
 
     // Private

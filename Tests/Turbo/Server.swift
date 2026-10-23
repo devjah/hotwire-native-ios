@@ -44,6 +44,10 @@ extension DefaultHTTPServer {
                 startResponse("200 OK", [("Content-Type", "text/html")])
                 sendBody(bridgeComponentsPage.data(using: .utf8)!)
                 sendBody(Data())
+            case "/scroll":
+                startResponse("200 OK", [("Content-Type", "text/html")])
+                sendBody(scrollPage.data(using: .utf8)!)
+                sendBody(Data())
             default:
                 startResponse("404 Not Found", [("Content-Type", "text/plain")])
                 sendBody(Data())
@@ -116,6 +120,26 @@ private let bridgeComponentsPage = """
   </head>
   <body>
     <h1>Bridge Components</h1>
+  </body>
+</html>
+"""
+
+/// A Turbo page tall enough to scroll, laid out at the device width so a CSS
+/// pixel is a point.
+private let scrollPage = """
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Scroll</title>
+    <script src="/turbo-7.0.0-beta.1.js"></script>
+    <script type="text/javascript">
+      Turbo.start()
+    </script>
+  </head>
+  <body style="margin: 0">
+    <div style="height: 5000px"></div>
   </body>
 </html>
 """
