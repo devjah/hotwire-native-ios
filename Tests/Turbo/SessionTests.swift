@@ -4,7 +4,6 @@ import WebKit
 import XCTest
 
 private let defaultTimeout: TimeInterval = 10000
-private let turboTimeout: TimeInterval = 30
 
 class SessionTests: XCTestCase {
     private let sessionDelegate = TestSessionDelegate()
@@ -98,13 +97,29 @@ class SessionTests: XCTestCase {
     /// back to back. The visit fails once, so one error view shows.
     @MainActor
     func test_coldBootVisit_whenVisitFailsFromMissingLibrary_failsOnceWithNotReady() async throws {
+        // turbo.js reports a page without Turbo from a 30-second timer. Run the page's
+        // timers at once rather than wait for it.
+        session.webView.configuration.userContentController.addUserScript(WKUserScript(
+            source: "const setTimeoutLater = window.setTimeout; window.setTimeout = (handler, delay, ...args) => setTimeoutLater(handler, 0, ...args)",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
+
+        // Keep the page on screen. WebKit suspends an off-screen page once it has loaded,
+        // and the timer of a suspended page never fires.
+        let visitable = TestVisitable(url: url("/missing-library"))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        visitable.visitableView.frame = window.bounds
+        window.addSubview(visitable.visitableView)
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
         let failed = self.expectation(description: "Wait for the load error.")
         failed.assertForOverFulfill = false
         sessionDelegate.didChange = { failed.fulfill() }
 
-        let visitable = TestVisitable(url: url("/missing-library"))
         session.visit(visitable)
-        await fulfillment(of: [failed], timeout: turboTimeout + defaultTimeout)
+        await fulfillment(of: [failed], timeout: 120)
 
         let secondFailure = self.expectation(description: "No second load error.")
         secondFailure.isInverted = true

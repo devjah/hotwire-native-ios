@@ -3,8 +3,20 @@ import SafariServices
 import XCTest
 
 final class NavigationDelegateTests: XCTestCase {
-    override func setUp() async throws {
+    override func setUp() {
         delegate = TestNavigatorDelegate()
+        navigator = Navigator(
+            session: Session(webView: Hotwire.config.makeWebView()),
+            modalSession: Session(webView: Hotwire.config.makeWebView()),
+            configuration: .init(
+                name: "",
+                startLocation: URL(string: "https://example.com")!
+            )
+        )
+    }
+
+    override func tearDown() {
+        navigator = nil
     }
 
     func test_handleProposalFrom_defaultsDefaultViewController() throws {
@@ -16,14 +28,7 @@ final class NavigationDelegateTests: XCTestCase {
     }
 
     private var delegate: NavigatorDelegate!
-    private let navigator = Navigator(
-        session: Session(webView: Hotwire.config.makeWebView()),
-        modalSession: Session(webView: Hotwire.config.makeWebView()),
-        configuration: .init(
-            name: "",
-            startLocation: URL(string: "https://example.com")!
-        )
-    )
+    private var navigator: Navigator!
 
     private class TestNavigatorDelegate: NavigatorDelegate {}
 }

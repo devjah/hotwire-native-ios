@@ -7,6 +7,8 @@ import XCTest
 /// See the README for a more visually pleasing table.
 final class NavigationHierarchyControllerTests: XCTestCase {
     override func setUp() {
+        session = Session(webView: Hotwire.config.makeWebView())
+        modalSession = Session(webView: Hotwire.config.makeWebView())
         navigationController = TestableNavigationController()
         modalNavigationController = TestableNavigationController()
 
@@ -19,6 +21,16 @@ final class NavigationHierarchyControllerTests: XCTestCase {
         navigator.hierarchyController = hierarchyController
 
         loadNavigationControllerInWindow()
+    }
+
+    override func tearDown() {
+        window.rootViewController = nil
+        navigator = nil
+        hierarchyController = nil
+        navigationController = nil
+        modalNavigationController = nil
+        session = nil
+        modalSession = nil
     }
 
     func test_start_succeeds_when_no_view_controllers_on_stack() {
@@ -743,8 +755,8 @@ final class NavigationHierarchyControllerTests: XCTestCase {
     private lazy var oneURL = baseURL.appendingPathComponent("/one")
     private lazy var twoURL = baseURL.appendingPathComponent("/two")
 
-    private let session = Session(webView: Hotwire.config.makeWebView())
-    private let modalSession = Session(webView: Hotwire.config.makeWebView())
+    private var session: Session!
+    private var modalSession: Session!
 
     private var navigator: Navigator!
     private let alertControllerDelegate = AlertControllerDelegate()

@@ -13,6 +13,8 @@ final class NavigationHierarchyControllerStackedModalTests: XCTestCase {
         originalNavigationControllerFactory = Hotwire.config.defaultNavigationController
         Hotwire.config.defaultNavigationController = { TestableNavigationController() }
 
+        session = Session(webView: Hotwire.config.makeWebView())
+        modalSession = Session(webView: Hotwire.config.makeWebView())
         navigationController = TestableNavigationController()
         modalNavigationController = TestableNavigationController()
 
@@ -29,6 +31,13 @@ final class NavigationHierarchyControllerStackedModalTests: XCTestCase {
 
     override func tearDown() {
         Hotwire.config.defaultNavigationController = originalNavigationControllerFactory
+        window.rootViewController = nil
+        navigator = nil
+        hierarchyController = nil
+        navigationController = nil
+        modalNavigationController = nil
+        session = nil
+        modalSession = nil
     }
 
     // MARK: Presenting
@@ -410,8 +419,8 @@ final class NavigationHierarchyControllerStackedModalTests: XCTestCase {
     private lazy var twoURL = baseURL.appendingPathComponent("/two")
     private lazy var threeURL = baseURL.appendingPathComponent("/three")
 
-    private let session = Session(webView: Hotwire.config.makeWebView())
-    private let modalSession = Session(webView: Hotwire.config.makeWebView())
+    private var session: Session!
+    private var modalSession: Session!
 
     private var navigator: Navigator!
     private let alertControllerDelegate = StackedModalAlertControllerDelegate()
