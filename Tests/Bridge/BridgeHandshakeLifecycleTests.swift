@@ -4,13 +4,16 @@ import WebKit
 import XCTest
 
 /// Drives a real `Session` against a real server, through the UIKit lifecycle a destination
-/// receives when something is presented over it while its page is still loading.
+/// receives when something is presented over it while its page is still loading. The
+/// destination's view sits in a visible window, as a screen's does, so the web view is on
+/// screen whenever the destination owns it.
 @MainActor
 final class BridgeHandshakeLifecycleTests: XCTestCase {
     private var eventLoop: SelectorEventLoop!
     private var server: DefaultHTTPServer!
     private var session: Session!
     private var destination: TestBridgeDestination!
+    private var window: UIWindow!
 
     override func setUp() async throws {
         Hotwire.registerBridgeComponents([BridgeComponentSpy.self])
@@ -22,9 +25,16 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
         server = DefaultHTTPServer.turboServer(eventLoop: eventLoop)
         try server.start()
         DispatchQueue.global().async { self.eventLoop.runForever() }
+
+        window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        destination.view.frame = window.bounds
+        window.addSubview(destination.view)
+        window.makeKeyAndVisible()
     }
 
     override func tearDown() {
+        window.isHidden = true
+        window = nil
         server.stopAndWait()
         eventLoop.stop()
         Hotwire.registerBridgeComponents([])
@@ -32,8 +42,6 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
 
     /// The control: nothing covers the destination, so it owns the web view for the whole load.
     func testDestinationStaysOnScreenWhileItsPageLoads() async throws {
-        _ = destination.view
-
         session.visit(destination)
         try await waitForPageScript()
         destination.viewDidAppear(false)
@@ -54,8 +62,6 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
     /// then announces itself to a bridge with no delegate. Returning to the screen re-attaches
     /// the destination and re-shows the rendered page, but recovers no bridge.
     func testDestinationIsCoveredWhileItsPageLoads() async throws {
-        _ = destination.view
-
         session.visit(destination)
         destination.viewDidDisappear(false)
 
@@ -89,8 +95,6 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
     /// document announces itself to that destination, which must register its components
     /// again: nothing of the previous document's registration survives the reload.
     func testDestinationKeepsItsComponentsAcrossAReload() async throws {
-        _ = destination.view
-
         session.visit(destination)
         try await waitForPageScript()
         destination.viewDidAppear(false)
