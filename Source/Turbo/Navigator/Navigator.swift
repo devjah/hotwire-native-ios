@@ -532,6 +532,10 @@ extension Navigator {
         // Routing again can dismiss a form over the main session or move a
         // modal to the main stack when its original proposal supplied context.
         guard let visitable = session.activeVisitable else { return }
+        // Routing replaced the controller, and its error view went with it. The
+        // reused controller still shows the failure this visit is retrying, and
+        // a recovered page would render underneath it.
+        visitable.visitableViewController.removeErrorViewController()
         session.prepareForReplacement()
         // Earlier pages keep their appearance delegate when recovery preserves
         // the stack. They must restore through the replacement on Back as well.
