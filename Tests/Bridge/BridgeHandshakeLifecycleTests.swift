@@ -63,6 +63,15 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
 
         try await waitForPageScript()
 
+        // The document has announced itself while nothing owned the web view, so nothing has
+        // registered yet and the page's message waits. Without this the test could re-attach
+        // the destination before the announcement and only repeat the control.
+        let registeredWhileCovered = try await evaluate("window.nativeBridge.supportedComponents.length") as? Int
+        XCTAssertEqual(registeredWhileCovered, 0)
+
+        let queuedWhileCovered = try await evaluate("window.webBridge.pendingMessages.length") as? Int
+        XCTAssertEqual(queuedWhileCovered, 1)
+
         destination.viewDidAppear(false)
         try await waitForRegisteredComponents()
 
@@ -89,7 +98,7 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
 
         _ = try await evaluate("window.loadedBeforeReload = true")
         session.reload()
-        try await poll {
+        try await waitUntil("the reloaded page's script ran") {
             try await self.evaluate("window.loadedBeforeReload === undefined && typeof window.webBridge === 'object'") as? Bool == true
         }
         try await waitForRegisteredComponents()
@@ -111,19 +120,16 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
     private let pageURL = URL(string: "http://localhost:8080/bridge-components")!
 
     private func waitForPageScript() async throws {
-        try await poll { try await self.evaluate("typeof window.webBridge") as? String == "object" }
+        try await waitUntil("the page's script ran") {
+            try await self.evaluate("typeof window.webBridge") as? String == "object"
+        }
     }
 
     /// The register call is made from a detached `Task`, so the JavaScript lands after the
-    /// handshake returns. Poll rather than sleep, and give up rather than hang.
+    /// handshake returns. Poll rather than sleep.
     private func waitForRegisteredComponents() async throws {
-        try await poll { try await self.evaluate("window.nativeBridge.supportedComponents.length") as? Int ?? 0 > 0 }
-    }
-
-    private func poll(until condition: () async throws -> Bool) async throws {
-        for _ in 0..<100 {
-            if (try? await condition()) == true { return }
-            try await Task.sleep(nanoseconds: 100_000_000)
+        try await waitUntil("the destination registered its components") {
+            try await self.evaluate("window.nativeBridge.supportedComponents.length") as? Int ?? 0 > 0
         }
     }
 
@@ -138,6 +144,26 @@ final class BridgeHandshakeLifecycleTests: XCTestCase {
             }
         }
     }
+}
+
+/// Polls until `condition` holds, and fails the test once `timeout` passes. Carrying on
+/// after a timeout would let the next step run against a page that isn't there.
+@MainActor
+private func waitUntil(
+    _ description: String,
+    timeout: TimeInterval = 120,
+    _ condition: () async throws -> Bool
+) async throws {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if (try? await condition()) == true { return }
+        try await Task.sleep(nanoseconds: 100_000_000)
+    }
+    throw WaitTimeout(description: "Timed out after \(Int(timeout)) seconds waiting until \(description)")
+}
+
+private struct WaitTimeout: Error, CustomStringConvertible {
+    let description: String
 }
 
 private final class TestBridgeDestination: HotwireWebViewController {
