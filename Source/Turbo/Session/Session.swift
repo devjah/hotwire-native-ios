@@ -529,8 +529,15 @@ extension Session: WebViewDelegate {
         visit.fail(with: error)
     }
 
+    /// The retry cold-boots the failed visit's own visitable, not the topmost
+    /// one. Going back, the failed visit is the revealed screen's restore while
+    /// `topmostVisit` still names the screen being popped (it moves only at
+    /// `visitableViewDidAppear`), and an offline fetch fails inside the pop
+    /// animation: reloading the topmost cold-booted the popped page into a
+    /// controller leaving the stack and left the revealed screen behind its
+    /// screenshot and spinner for good (hotwired/hotwire-native-ios#218).
     @MainActor
-    private func retryOrFailCurrentVisit(with error: HotwireNativeError, visitIdentifier: String) {
+    func retryOrFailCurrentVisit(with error: HotwireNativeError, visitIdentifier: String) {
         guard let visit = currentVisit as? JavaScriptVisit,
               visit.identifier == visitIdentifier else { return }
 
@@ -542,7 +549,7 @@ extension Session: WebViewDelegate {
         }
 
         retriedVisitIdentifiers.insert(visitIdentifier)
-        reload()
+        reload(visit.visitable)
     }
 
     @MainActor
