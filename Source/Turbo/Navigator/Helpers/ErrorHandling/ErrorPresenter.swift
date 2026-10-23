@@ -16,6 +16,10 @@ public extension ErrorPresenter {
     ///   - retryHandler: a user-triggered action to perform in case the error is recoverable
     ///
     func presentError(_ error: HotwireNativeError, retryHandler: Handler?) {
+        // A screen shows one error at a time. A controller that fails again
+        // (web view recovery reuses it) would otherwise stack a view over the
+        // last, and Retry would remove the one underneath.
+        removeErrorViewController()
         let view = Hotwire.config.makeCustomErrorView(error) { [weak self] in
             retryHandler?()
             self?.removeErrorViewController()
@@ -27,10 +31,11 @@ public extension ErrorPresenter {
     }
 
     func removeErrorViewController() {
-        guard let host = children.first(where: { $0 is ErrorHostingViewController }) else { return }
-        host.willMove(toParent: nil)
-        host.view.removeFromSuperview()
-        host.removeFromParent()
+        for host in children where host is ErrorHostingViewController {
+            host.willMove(toParent: nil)
+            host.view.removeFromSuperview()
+            host.removeFromParent()
+        }
     }
 }
 

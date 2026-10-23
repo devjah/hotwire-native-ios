@@ -1,4 +1,5 @@
 @testable import HotwireNative
+import SwiftUI
 import UIKit
 import WebKit
 import XCTest
@@ -75,6 +76,19 @@ final class NavigatorRecoveryPresentationTests: XCTestCase {
         navigator.session.reload()
         XCTAssertEqual(webView.requests, [currentURL, currentURL])
         XCTAssertIdentical(navigator.rootViewController.topViewController, page)
+    }
+
+    func test_recovery_removesTheErrorViewOfTheControllerItReuses() {
+        let navigator = makeNavigator()
+        let page = seedVisit(in: navigator.session, on: navigator.rootViewController)
+        // A first load that failed: the error view is up and the web view has no URL.
+        page.presentError(.load(.notPresent), retryHandler: nil)
+
+        navigator.appDidBecomeActive()
+
+        XCTAssertIdentical(navigator.session.activeVisitable, page)
+        XCTAssertFalse(page.children.contains { $0 is UIHostingController<AnyView> },
+                       "The recovered page must not render under the old error")
     }
 
     func test_mainRecovery_backNavigationUsesReplacementSession() {
