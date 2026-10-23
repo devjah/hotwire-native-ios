@@ -29,4 +29,18 @@ jobs:
           print(next(d["udid"] for runtime, ds in sorted(devices.items(), reverse=True)
                      if ".iOS-" in runtime for d in ds if d["name"].startswith("iPhone")))
           ')
-          xcodebuild test -scheme HotwireNative -destination "id=$udid" | xcpretty && exit ${PIPESTATUS[0]}
+          xcodebuild test -scheme HotwireNative -destination "id=$udid" -resultBundlePath TestResults.xcresult | xcpretty && exit ${PIPESTATUS[0]}
+
+      # xcpretty hides a crashed test runner: xcodebuild restarts it and the
+      # summary still counts every test as passed. The crash reports and the
+      # result bundle show which test crashed and where.
+      - name: Upload crash reports and test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          path: |
+            ~/Library/Logs/DiagnosticReports/
+            TestResults.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
