@@ -56,6 +56,8 @@ public final class BridgeDelegate: BridgingDelegate {
         if bridge == nil {
             logger.warning("bridgeNotInitializedForWebView")
         }
+
+        bridge?.notifyDelegateOfDocumentAnnouncementIfNeeded()
     }
     
     public func webViewDidBecomeDeactivated() {
@@ -115,6 +117,9 @@ public final class BridgeDelegate: BridgingDelegate {
     
     public func bridgeDidInitialize() {
         let componentNames = componentTypes.map { $0.name }
+        // The announcement is answered now, so register with this bridge even
+        // if the destination detaches before the task runs.
+        let bridge = self.bridge
         Task {
             do {
                 try await bridge?.register(components: componentNames)

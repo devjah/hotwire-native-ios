@@ -9,6 +9,8 @@ protocol Bridgable: AnyObject {
     var delegate: BridgeDelegate? { get set }
     var webView: WKWebView? { get }
 
+    @MainActor func notifyDelegateOfDocumentAnnouncementIfNeeded()
+
     func register(component: String) async throws
     func register(components: [String]) async throws
     func unregister(component: String) async throws
@@ -31,6 +33,26 @@ public final class Bridge: Bridgable {
     init(webView: WKWebView) {
         self.webView = webView
         loadIntoWebView()
+    }
+
+    /// A document announces itself once, at document start, and the destination that owns
+    /// the web view answers by registering the app's components with it. A destination whose
+    /// screen went away while its page was still loading (a sheet closed before its cold
+    /// load arrived, a screen covered by a push) has already given the web view up, so the
+    /// announcement finds nobody, and every message the page queues waits for a registration
+    /// that never comes. Hold the announcement for the next destination that attaches.
+    ///
+    /// Each announcement is answered exactly once. Registration belongs to the document,
+    /// not to the screen showing it: a reload is a new document whose announcement the
+    /// destination still on screen must answer again, while a push or pop only hands an
+    /// answered document to another destination, and registering again there would only
+    /// append duplicates.
+    @MainActor
+    func notifyDelegateOfDocumentAnnouncementIfNeeded() {
+        guard documentAnnouncementIsUnanswered, let delegate else { return }
+
+        documentAnnouncementIsUnanswered = false
+        delegate.bridgeDidInitialize()
     }
 
     // MARK: - Internal API
@@ -108,6 +130,9 @@ public final class Bridge: Bridgable {
     // MARK: Private
 
     private static var instances: [Bridge] = []
+    /// Set by each document's `ready`, cleared once a destination has been told.
+    private var documentAnnouncementIsUnanswered = false
+
     /// This needs to match whatever the JavaScript file uses
     private let bridgeGlobal = "window.nativeBridge"
 
@@ -175,7 +200,8 @@ extension Bridge: ScriptMessageHandlerDelegate {
     @MainActor
     func scriptMessageHandlerDidReceiveMessage(_ scriptMessage: WKScriptMessage) {
         if let event = scriptMessage.body as? String, event == "ready" {
-            delegate?.bridgeDidInitialize()
+            documentAnnouncementIsUnanswered = true
+            notifyDelegateOfDocumentAnnouncementIfNeeded()
             return
         }
 
