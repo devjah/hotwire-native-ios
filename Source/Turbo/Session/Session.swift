@@ -411,7 +411,9 @@ extension Session: WebViewDelegate {
 
     /// Initial page load failed, this will happen when we couldn't find Turbo JS on the page
     func webView(_ webView: WebViewBridge, didFailInitialPageLoadWithError error: HotwireNativeError) {
-        guard let currentVisit = currentVisit, !initialized else { return }
+        // A page without Turbo reports both "not ready" and "page load failed".
+        // The first fails the visit; a second failure would stack another error view.
+        guard let currentVisit = currentVisit, !initialized, currentVisit.state == .started else { return }
 
         initialized = false
         currentVisit.cancel()
