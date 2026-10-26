@@ -156,9 +156,6 @@ next upstream merge touches the same lines; resolve as noted.
   responses don't fail a cold boot. Taken as is, plus non-HTTP tests.
 - [#268](https://github.com/hotwired/hotwire-native-ios/pull/268) the cached
   snapshot loads before the request is issued. Taken as is, plus a test.
-- [#269](https://github.com/hotwired/hotwire-native-ios/pull/269) stale cookies
-  leave `HTTPCookieStorage`. Keep ours: it sets cookies before deleting stale
-  ones, so a concurrent native request never misses the session cookie.
 - [#262](https://github.com/hotwired/hotwire-native-ios/pull/262) a late-attaching
   destination answers the bridge's `ready`. Keep ours: upstream's version drops
   `ready` after a reload on the same screen and re-registers on every push and pop.
@@ -171,6 +168,18 @@ messages), [#270](https://github.com/hotwired/hotwire-native-ios/pull/270)
 lost going back with the keyboard up). #217 keeps the revealed screen's
 screenshot up behind a revealed-by-pop flag that stays set, so later reloads and
 recoveries of that screen stay frozen.
+
+### Upstream PRs not to take
+
+- [#269](https://github.com/hotwired/hotwire-native-ios/pull/269) (and the older
+  [#182](https://github.com/hotwired/hotwire-native-ios/pull/182)) remove the
+  native cookies the web view didn't return. On a device the web view and
+  `HTTPCookieStorage.shared` persist to the same cookie file, so that delete
+  also reaches the web view at its next launch. A cookie a native response had
+  just set, before the web view saw it, is erased from both, and our apps sign
+  in through native responses (`remember_user_token`). This fork carried it as
+  #18 and reverted it in #29 after it signed a user out. If upstream merges it,
+  revert it again in the next upstream merge.
 
 ## Contributing
 
